@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="LoginForm" type="Application" factoryName="Application" singleton="false" nameIsGenerated="true">
+    <option name="ALTERNATIVE_JRE_PATH" value="$USER_HOME$/.jdks/openjdk-25" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
+    <option name="MAIN_CLASS_NAME" value="LoginForm" />
+    <module name="Finance Tracker" />
+    <shortenClasspath name="MANIFEST" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
