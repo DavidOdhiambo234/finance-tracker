@@ -1,10 +1,9 @@
 services:
   - type: web
     name: supreme-money-coach-api
-    env: java
+    env: docker
     plan: free
-    buildCommand: "javac -cp \"src:lib/*\" src/MobileApiServer.java"
-    startCommand: "java -cp \"src:lib/*\" MobileApiServer"
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: JAVA_OPTS
         value: "-Xmx256m"
