@@ -7,6 +7,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
@@ -141,6 +142,35 @@ public class MobileApiServer {
         System.out.println("   POST /api/videos/view");
         System.out.println("");
         System.out.println("Press Ctrl+C to stop the server");
+        // Add this in your main method
+        server.createContext("/", exchange -> {
+            try {
+                // Try to serve mobile_app.html from src folder
+                File file = new File("src/mobile_app.html");
+                if (file.exists()) {
+                    String response = new String(Files.readAllBytes(file.toPath()));
+                    exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+                    exchange.sendResponseHeaders(200, response.length());
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(response.getBytes());
+                    os.close();
+                } else {
+                    // Fallback JSON response
+                    String response = "{\"status\":\"online\",\"message\":\"Supreme Money Coach API\",\"version\":\"1.0\"}";
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, response.length());
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(response.getBytes());
+                    os.close();
+                }
+            } catch (Exception e) {
+                String error = "{\"error\":\"Internal Server Error\"}";
+                exchange.sendResponseHeaders(500, error.length());
+                OutputStream os = exchange.getResponseBody();
+                os.write(error.getBytes());
+                os.close();
+            }
+        });
     }
 
     // ============================================================
