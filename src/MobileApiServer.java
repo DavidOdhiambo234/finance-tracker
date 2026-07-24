@@ -120,18 +120,20 @@ public class MobileApiServer {
                 String[] paths = {"src/mobile_app.html", "./src/mobile_app.html", "/app/src/mobile_app.html"};
                 String response = null;
                 String contentType = "text/html; charset=UTF-8";
+                byte[] responseBytes = null;
 
                 for (String path : paths) {
                     File file = new File(path);
                     System.out.println("📂 Checking: " + file.getAbsolutePath() + " - exists: " + file.exists());
                     if (file.exists()) {
-                        response = new String(Files.readAllBytes(file.toPath()));
-                        System.out.println("✅ Found file at: " + path);
+                        responseBytes = Files.readAllBytes(file.toPath());
+                        response = new String(responseBytes, StandardCharsets.UTF_8);
+                        System.out.println("✅ Found file at: " + path + " (size: " + responseBytes.length + " bytes)");
                         break;
                     }
                 }
 
-                if (response == null) {
+                if (responseBytes == null) {
                     System.out.println("⚠️ No HTML file found, using fallback");
                     response = "<html><head><title>Supreme Money Coach</title></head>" +
                             "<body style='background:#0a1628;color:#e0e8f0;font-family:Arial;text-align:center;padding:50px;'>" +
@@ -141,21 +143,23 @@ public class MobileApiServer {
                             "<p>🔐 Login: <code>/api/login</code></p>" +
                             "<p>📝 Register: <code>/api/register</code></p>" +
                             "</body></html>";
+                    responseBytes = response.getBytes(StandardCharsets.UTF_8);
                 }
 
                 exchange.getResponseHeaders().set("Content-Type", contentType);
-                exchange.sendResponseHeaders(200, response.length());
+                exchange.sendResponseHeaders(200, responseBytes.length);
                 OutputStream os = exchange.getResponseBody();
-                os.write(response.getBytes());
+                os.write(responseBytes);
                 os.close();
 
             } catch (Exception e) {
                 e.printStackTrace();
                 try {
                     String error = "Error: " + e.getMessage();
-                    exchange.sendResponseHeaders(500, error.length());
+                    byte[] errorBytes = error.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(500, errorBytes.length);
                     OutputStream os = exchange.getResponseBody();
-                    os.write(error.getBytes());
+                    os.write(errorBytes);
                     os.close();
                 } catch (IOException ignored) {}
             }
