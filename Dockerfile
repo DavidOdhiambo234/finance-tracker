@@ -6,6 +6,7 @@ WORKDIR /app
 COPY src ./src/
 COPY lib ./lib/
 COPY config.properties ./config.properties
+COPY index.html ./index.html
 
 # Compile with correct classpath
 RUN javac -cp "src:lib/*" src/MobileApiServer.java
