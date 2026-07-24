@@ -101,30 +101,63 @@ public class MobileApiServer {
         // ============================================================
         server.createContext("/", exchange -> {
             try {
-                // Try to serve mobile_app.html from src folder
-                File file = new File("src/mobile_app.html");
-                if (file.exists()) {
-                    String response = new String(Files.readAllBytes(file.toPath()));
-                    exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                    exchange.sendResponseHeaders(200, response.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(response.getBytes());
-                    os.close();
+                // Log current directory
+                System.out.println("🔍 Root handler called");
+                System.out.println("📁 Current directory: " + System.getProperty("user.dir"));
+
+                // Log all files in /app/src
+                File srcDir = new File("src");
+                if (srcDir.exists()) {
+                    System.out.println("📂 Files in src/:");
+                    for (File f : srcDir.listFiles()) {
+                        System.out.println("   - " + f.getName() + " (size: " + f.length() + " bytes)");
+                    }
                 } else {
-                    // Fallback JSON response
-                    String response = "{\"status\":\"online\",\"message\":\"Supreme Money Coach API\",\"version\":\"1.0\"}";
-                    exchange.getResponseHeaders().set("Content-Type", "application/json");
-                    exchange.sendResponseHeaders(200, response.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(response.getBytes());
-                    os.close();
+                    System.out.println("❌ src/ directory does not exist!");
                 }
-            } catch (Exception e) {
-                String error = "{\"error\":\"Internal Server Error\"}";
-                exchange.sendResponseHeaders(500, error.length());
+
+                // Try to find mobile_app.html in multiple locations
+                String[] paths = {"src/mobile_app.html", "./src/mobile_app.html", "/app/src/mobile_app.html"};
+                String response = null;
+                String contentType = "text/html; charset=UTF-8";
+
+                for (String path : paths) {
+                    File file = new File(path);
+                    System.out.println("📂 Checking: " + file.getAbsolutePath() + " - exists: " + file.exists());
+                    if (file.exists()) {
+                        response = new String(Files.readAllBytes(file.toPath()));
+                        System.out.println("✅ Found file at: " + path);
+                        break;
+                    }
+                }
+
+                if (response == null) {
+                    System.out.println("⚠️ No HTML file found, using fallback");
+                    response = "<html><head><title>Supreme Money Coach</title></head>" +
+                            "<body style='background:#0a1628;color:#e0e8f0;font-family:Arial;text-align:center;padding:50px;'>" +
+                            "<h1 style='color:#ffc107;'>💰 Supreme Money Coach</h1>" +
+                            "<p style='color:#00a86b;'>✅ API is running!</p>" +
+                            "<p>📱 Access API at: <code>/api/</code></p>" +
+                            "<p>🔐 Login: <code>/api/login</code></p>" +
+                            "<p>📝 Register: <code>/api/register</code></p>" +
+                            "</body></html>";
+                }
+
+                exchange.getResponseHeaders().set("Content-Type", contentType);
+                exchange.sendResponseHeaders(200, response.length());
                 OutputStream os = exchange.getResponseBody();
-                os.write(error.getBytes());
+                os.write(response.getBytes());
                 os.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                try {
+                    String error = "Error: " + e.getMessage();
+                    exchange.sendResponseHeaders(500, error.length());
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(error.getBytes());
+                    os.close();
+                } catch (IOException ignored) {}
             }
         });
 
