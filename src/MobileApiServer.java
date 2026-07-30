@@ -92,9 +92,9 @@ public class MobileApiServer {
 // EXPENSE & BUDGET ENDPOINTS
 // ============================================================
         server.createContext("/api/expenses/categories", new ExpenseCategoriesHandler());
-       // server.createContext("/api/expenses", new GetExpensesHandler());
-       // server.createContext("/api/expenses/add", new AddExpenseHandler());
-       // server.createContext("/api/expenses/budget", new BudgetHandler());
+       server.createContext("/api/expenses", new GetExpensesHandler());
+       server.createContext("/api/expenses/add", new AddExpenseHandler());
+       server.createContext("/api/expenses/budget", new BudgetHandler());
 
         // ============================================================
         // VIDEO ENDPOINTS
