@@ -417,6 +417,16 @@
             opacity: 0.8;
         }
 
+        .btn-green {
+            background: var(--green);
+            color: white !important;
+        }
+
+        .btn-green:active {
+            transform: scale(0.98);
+            opacity: 0.8;
+        }
+
         .auth-link {
             text-align: center;
             margin-top: 16px;
@@ -1106,6 +1116,52 @@
         }
 
         /* ============================================================
+           PAYMENT METHODS
+           ============================================================ */
+        .payment-method-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .payment-method-card:active {
+            transform: scale(0.98);
+        }
+
+        .payment-method-card .method-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+        }
+
+        .payment-method-card .method-details {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            line-height: 1.6;
+        }
+
+        .payment-method-card .method-details strong {
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        .payment-method-card .method-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: var(--green);
+            color: white;
+            margin-top: 6px;
+        }
+
+        /* ============================================================
            UTILITY
            ============================================================ */
         .mt-8 {
@@ -1238,9 +1294,11 @@
     <button class="sidebar-item" onclick="navigateToSidebar('debts')">
         <span class="icon">💳</span> Debt Reminders
     </button>
-    <!-- Add this after the Debt Reminders button -->
     <button class="sidebar-item" onclick="navigateToSidebar('expenses')">
-        <span class="icon">💰</span> Expenses
+        <span class="icon">📊</span> Expenses
+    </button>
+    <button class="sidebar-item" onclick="navigateToSidebar('payments')">
+        <span class="icon">💳</span> Payments
     </button>
 
     <div class="sidebar-divider"></div>
@@ -1272,9 +1330,9 @@
     <div class="header-right">
         <span class="username" id="headerUsername">User</span>
         <span class="notif-bell" onclick="showNotifications()">
-                🔔
-                <span class="notif-badge" id="headerNotifBadge">0</span>
-            </span>
+            🔔
+            <span class="notif-badge" id="headerNotifBadge">0</span>
+        </span>
         <div class="avatar" id="headerAvatar">U</div>
     </div>
 </header>
@@ -2029,6 +2087,7 @@
         </div>
     </div>
 </div>
+
 <!-- EXPENSES SCREEN -->
 <div id="expensesScreen" class="screen">
     <div class="detail-header">
@@ -2078,7 +2137,8 @@
         </div>
     </div>
 </div>
-<!-- ADD EXPENSE MODAL - RESIZED -->
+
+<!-- ADD EXPENSE MODAL -->
 <div id="addExpenseModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center; padding:16px;">
     <div style="background:var(--bg-secondary); border-radius:14px; padding:16px 18px 18px 18px; max-width:340px; width:100%; max-height:90vh; overflow-y:auto; border:2px solid var(--green);">
 
@@ -2132,6 +2192,61 @@
     </div>
 </div>
 
+<!-- PAYMENTS SCREEN -->
+<div id="paymentsScreen" class="screen">
+    <div class="detail-header">
+        <button class="back-btn" onclick="goBackFromPayments()">‹</button>
+        <span class="title">💳 Payments</span>
+    </div>
+
+    <!-- Payment Methods -->
+    <div style="margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">
+            💳 Payment Methods
+        </div>
+        <div id="paymentMethodsList" style="background:var(--bg-secondary); border-radius:12px; border:1px solid var(--border-color); min-height:80px; padding:12px;">
+            <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
+                Select a Chama to view payment methods
+            </div>
+        </div>
+        <div style="margin-top:8px;">
+            <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">Select Chama</label>
+            <select id="paymentChamaSelect" style="width:100%; padding:10px 14px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:10px; color:var(--text-primary); font-size:14px;" onchange="loadPaymentMethods()">
+                <option value="">Select a Chama...</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Initiate Payment -->
+    <div style="background:var(--bg-secondary); border-radius:12px; padding:16px; border:1px solid var(--border-color); margin-bottom:16px;">
+        <div style="font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">
+            ➕ Initiate Payment
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+            <label>Amount (Ksh)</label>
+            <input type="number" id="initiatePaymentAmount" placeholder="Enter amount">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+            <label>Phone Number (Optional)</label>
+            <input type="tel" id="initiatePaymentPhone" placeholder="e.g., 0712345678">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+            <label>Description</label>
+            <input type="text" id="initiatePaymentDescription" placeholder="Payment description">
+        </div>
+        <button class="btn btn-primary" onclick="initiatePayment()">💰 PAY NOW</button>
+    </div>
+
+    <!-- Payment History -->
+    <div style="font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">
+        📋 Payment History
+    </div>
+    <div id="paymentHistoryList" style="background:var(--bg-secondary); border-radius:12px; border:1px solid var(--border-color); min-height:100px; padding:12px;">
+        <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
+            Loading payment history...
+        </div>
+    </div>
+</div>
 
 <!-- BOTTOM NAVIGATION -->
 <div class="bottom-nav" id="bottomNav" style="display:none;">
@@ -2141,15 +2256,14 @@
     <button class="nav-item" onclick="navigateTo('chamas')">
         <span class="icon">👥</span> Chamas
     </button>
-    <button class="nav-item" onclick="showProfile()">
-        <span class="icon">👤</span> Profile
-    </button>
-    <button class="nav-item" onclick="showNotifications()">
-        <span class="icon">🔔</span> Notifications
-    </button>
-    <!-- Add this between Chamas and Profile -->
     <button class="nav-item" onclick="showExpenses()">
         <span class="icon">💰</span> Expenses
+    </button>
+    <button class="nav-item" onclick="showPayments()">
+        <span class="icon">💳</span> Payments
+    </button>
+    <button class="nav-item" onclick="showProfile()">
+        <span class="icon">👤</span> Profile
     </button>
     <button class="nav-item" onclick="handleLogout()">
         <span class="icon">🚪</span> Logout
@@ -2160,7 +2274,7 @@
     // ============================================================
     // CONFIGURATION
     // ============================================================
-  const API_URL = 'https://supreme-money-coach-api.onrender.com/api';
+    const API_URL = 'https://supreme-money-coach-api.onrender.com/api';
     let currentUser = null;
     let currentToken = null;
     let currentChamaId = null;
@@ -2175,6 +2289,8 @@
     let debtsData = [];
     let selectedDebtId = null;
     let debtType = 'I_OWE';
+    let expenseCategories = [];
+    let selectedPaymentChamaId = null;
 
     // ============================================================
     // SIDEBAR
@@ -2228,9 +2344,12 @@
             case 'debts':
                 showDebts();
                 break;
-            case 'expenses':      // <-- ADD THIS CASE
-            showExpenses();
-            break;
+            case 'expenses':
+                showExpenses();
+                break;
+            case 'payments':
+                showPayments();
+                break;
             case 'aiChat':
                 showAIChat();
                 break;
@@ -2454,32 +2573,35 @@
         const screen = document.getElementById(screenId + 'Screen');
         if (screen) screen.classList.add('active');
     }
-function navigateTo(target) {
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(item => {
-        if (item.textContent.trim().toLowerCase().includes(target)) {
-            item.classList.add('active');
-        }
-    });
 
-    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-        if (item.textContent.trim().toLowerCase().includes(target)) {
-            item.classList.add('active');
-        }
-    });
+    function navigateTo(target) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(item => {
+            if (item.textContent.trim().toLowerCase().includes(target)) {
+                item.classList.add('active');
+            }
+        });
 
-    if (target === 'dashboard' || target === 'chamas') {
-        showScreen('dashboard');
-        loadDashboard();
-    } else if (target === 'profile') {
-        showProfile();
-    } else if (target === 'notifications') {
-        showNotifications();
-    } else if (target === 'expenses') {
-        showExpenses();
+        document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            if (item.textContent.trim().toLowerCase().includes(target)) {
+                item.classList.add('active');
+            }
+        });
+
+        if (target === 'dashboard' || target === 'chamas') {
+            showScreen('dashboard');
+            loadDashboard();
+        } else if (target === 'profile') {
+            showProfile();
+        } else if (target === 'notifications') {
+            showNotifications();
+        } else if (target === 'expenses') {
+            showExpenses();
+        } else if (target === 'payments') {
+            showPayments();
+        }
     }
-}
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
@@ -2548,6 +2670,16 @@ function navigateTo(target) {
     }
 
     function goBackFromSavings() {
+        showScreen('dashboard');
+        loadDashboard();
+    }
+
+    function goBackFromExpenses() {
+        showScreen('dashboard');
+        loadDashboard();
+    }
+
+    function goBackFromPayments() {
         showScreen('dashboard');
         loadDashboard();
     }
@@ -2805,315 +2937,288 @@ function navigateTo(target) {
         URL.revokeObjectURL(url);
         alert('✅ Statement downloaded!');
     }
+
     // ============================================================
-// EXPENSES JAVASCRIPT
-// ============================================================
+    // EXPENSES
+    // ============================================================
 
-let expenseCategories = [];
-
-function showExpenses() {
-    showScreen('expenses');
-    loadExpenses();
-    loadBudgetSummary();
-    loadExpenseCategories();
-    loadUserChamasForExpense();
-}
-
-function goBackFromExpenses() {
-    showScreen('dashboard');
-    loadDashboard();
-}
-
-async function loadExpenseCategories() {
-    try {
-        const response = await fetch(`${API_URL}/expenses/categories`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        const data = await response.json();
-        if (data.success) {
-            expenseCategories = data.categories;
-            populateCategorySelect();
-        }
-    } catch (error) {
-        console.error('Error loading categories:', error);
+    function showExpenses() {
+        showScreen('expenses');
+        loadExpenses();
+        loadBudgetSummary();
+        loadExpenseCategories();
+        loadUserChamasForExpense();
     }
-}
 
-function populateCategorySelect() {
-    const select = document.getElementById('expenseCategory');
-    select.innerHTML = '<option value="">Select a category...</option>';
-    expenseCategories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat.id;
-        option.textContent = cat.icon + ' ' + cat.name;
-        select.appendChild(option);
-    });
-}
+    async function loadExpenseCategories() {
+        try {
+            const response = await fetch(`${API_URL}/expenses/categories`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                expenseCategories = data.categories;
+                populateCategorySelect();
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+        }
+    }
 
-async function loadExpenses() {
-    const container = document.getElementById('expensesList');
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-secondary);">
-        <div class="spinner" style="margin:10px auto;"></div>Loading expenses...
-    </div>`;
-
-    try {
-        const response = await fetch(`${API_URL}/expenses`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
+    function populateCategorySelect() {
+        const select = document.getElementById('expenseCategory');
+        select.innerHTML = '<option value="">Select a category...</option>';
+        expenseCategories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.icon + ' ' + cat.name;
+            select.appendChild(option);
         });
-        const data = await response.json();
+    }
 
-        if (data.success && data.expenses) {
-            if (data.expenses.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align:center; padding:30px 20px; color:var(--text-secondary);">
-                        <div style="font-size:48px; margin-bottom:12px;">📭</div>
-                        <div style="font-size:16px;">No expenses yet</div>
-                        <div style="font-size:13px; margin-top:8px;">Track your spending to stay on budget!</div>
-                        <button class="btn btn-primary mt-16" onclick="showAddExpense()" style="width:auto; padding:10px 24px;">💰 Add Expense</button>
+    async function loadExpenses() {
+        const container = document.getElementById('expensesList');
+        container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-secondary);">
+            <div class="spinner" style="margin:10px auto;"></div>Loading expenses...
+        </div>`;
+
+        try {
+            const response = await fetch(`${API_URL}/expenses`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await response.json();
+
+            if (data.success && data.expenses) {
+                if (data.expenses.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:30px 20px; color:var(--text-secondary);">
+                            <div style="font-size:48px; margin-bottom:12px;">📭</div>
+                            <div style="font-size:16px;">No expenses yet</div>
+                            <div style="font-size:13px; margin-top:8px;">Track your spending to stay on budget!</div>
+                            <button class="btn btn-primary mt-16" onclick="showAddExpense()" style="width:auto; padding:10px 24px;">💰 Add Expense</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                data.expenses.forEach(exp => {
+                    const date = new Date(exp.expense_date);
+                    const formattedDate = date.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+                    html += `
+                        <div style="display:flex; align-items:center; padding:12px; border-bottom:1px solid var(--border-color);">
+                            <div style="width:40px; height:40px; border-radius:50%; background:${exp.color || '#2a3a55'}; display:flex; align-items:center; justify-content:center; font-size:20px; margin-right:12px;">
+                                ${exp.icon || '📌'}
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-size:14px; font-weight:500;">${exp.description || exp.category_name}</div>
+                                <div style="font-size:11px; color:var(--text-secondary);">${exp.category_name} • ${formattedDate}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:16px; font-weight:600; color:var(--red);">-Ksh ${formatNumber(exp.amount)}</div>
+                                <div style="font-size:10px; color:var(--text-secondary);">${exp.payment_method}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--red);">❌ ${error.message}</div>`;
+        }
+    }
+
+    async function loadBudgetSummary() {
+        try {
+            const response = await fetch(`${API_URL}/expenses`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await response.json();
+
+            if (data.success && data.budget_summary) {
+                const summary = data.budget_summary;
+                document.getElementById('totalBudget').textContent = 'Ksh ' + formatNumber(summary.total_budget || 0);
+                document.getElementById('totalSpent').textContent = 'Ksh ' + formatNumber(summary.total_spent || 0);
+                document.getElementById('totalRemaining').textContent = 'Ksh ' + formatNumber(summary.remaining_total || 0);
+
+                renderBudgetBars(summary.budgets);
+                renderBudgetAlerts(summary.alerts);
+            }
+        } catch (error) {
+            console.error('Error loading budget summary:', error);
+        }
+    }
+
+    function renderBudgetBars(budgets) {
+        const container = document.getElementById('budgetBars');
+
+        if (!budgets || budgets.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:8px; color:var(--text-secondary); font-size:13px;">
+                    No budgets set. Add expenses to start tracking!
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        budgets.slice(0, 8).forEach(budget => {
+            const percentage = Math.min(budget.percentage || 0, 100);
+            const barColor = percentage >= 100 ? 'var(--red)' : percentage >= 80 ? 'var(--amber)' : 'var(--green)';
+
+            html += `
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary);">
+                        <span>${budget.icon || '📌'} ${budget.category_name}</span>
+                        <span>Ksh ${formatNumber(budget.spent)} / Ksh ${formatNumber(budget.budgeted)}</span>
                     </div>
-                `;
-                return;
+                    <div style="height:6px; background:var(--bg-primary); border-radius:3px; overflow:hidden; margin-top:2px;">
+                        <div style="height:100%; width:${percentage}%; background:${barColor}; border-radius:3px; transition:width 0.5s;"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function renderBudgetAlerts(alerts) {
+        const container = document.getElementById('budgetAlerts');
+        const alertList = document.getElementById('alertList');
+
+        if (!alerts || alerts.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        let html = '';
+        alerts.forEach(alert => {
+            html += `
+                <div style="font-size:13px; color:var(--amber); padding:4px 0;">
+                    ⚠️ ${alert.category_name}: Used ${Math.round(alert.percentage)}% of budget (Ksh ${formatNumber(alert.spent)}/${formatNumber(alert.budgeted)})
+                </div>
+            `;
+        });
+        alertList.innerHTML = html;
+    }
+
+    function showAddExpense() {
+        document.getElementById('addExpenseModal').style.display = 'flex';
+        document.getElementById('expenseAmount').value = '';
+        document.getElementById('expenseDescription').value = '';
+        document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('expenseCategory').value = '';
+        document.getElementById('expensePaymentMethod').value = 'CASH';
+        document.getElementById('expenseChama').value = '';
+        loadExpenseCategories();
+        loadUserChamasForExpense();
+    }
+
+    function closeAddExpense() {
+        document.getElementById('addExpenseModal').style.display = 'none';
+    }
+
+    async function loadUserChamasForExpense() {
+        const select = document.getElementById('expenseChama');
+        select.innerHTML = '<option value="">None</option>';
+
+        try {
+            const response = await fetch(`${API_URL}/chama/list`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await response.json();
+
+            if (data.success && data.chamas) {
+                data.chamas.forEach(chama => {
+                    const option = document.createElement('option');
+                    option.value = chama.id;
+                    option.textContent = chama.name;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chamas:', error);
+        }
+    }
+
+    async function saveExpense() {
+        const categoryId = document.getElementById('expenseCategory').value;
+        const amount = document.getElementById('expenseAmount').value.trim();
+        const description = document.getElementById('expenseDescription').value.trim();
+        const expenseDate = document.getElementById('expenseDate').value;
+        const paymentMethod = document.getElementById('expensePaymentMethod').value;
+        const chamaId = document.getElementById('expenseChama').value;
+
+        if (!categoryId) {
+            alert('❌ Please select a category');
+            return;
+        }
+
+        if (!amount || parseFloat(amount) <= 0) {
+            alert('❌ Please enter a valid amount');
+            document.getElementById('expenseAmount').focus();
+            return;
+        }
+
+        if (!expenseDate) {
+            alert('❌ Please select a date');
+            return;
+        }
+
+        closeAddExpense();
+        showLoading(true);
+
+        try {
+            const requestData = {
+                category_id: parseInt(categoryId),
+                amount: parseFloat(amount),
+                expense_date: expenseDate,
+                description: description || "",
+                payment_method: paymentMethod || "CASH"
+            };
+
+            if (chamaId && chamaId !== '') {
+                requestData.chama_id = parseInt(chamaId);
             }
 
-            let html = '';
-            data.expenses.forEach(exp => {
-                const date = new Date(exp.expense_date);
-                const formattedDate = date.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
-                html += `
-                    <div style="display:flex; align-items:center; padding:12px; border-bottom:1px solid var(--border-color);">
-                        <div style="width:40px; height:40px; border-radius:50%; background:${exp.color || '#2a3a55'}; display:flex; align-items:center; justify-content:center; font-size:20px; margin-right:12px;">
-                            ${exp.icon || '📌'}
-                        </div>
-                        <div style="flex:1;">
-                            <div style="font-size:14px; font-weight:500;">${exp.description || exp.category_name}</div>
-                            <div style="font-size:11px; color:var(--text-secondary);">${exp.category_name} • ${formattedDate}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:16px; font-weight:600; color:var(--red);">-Ksh ${formatNumber(exp.amount)}</div>
-                            <div style="font-size:10px; color:var(--text-secondary);">${exp.payment_method}</div>
-                        </div>
-                    </div>
-                `;
+            console.log('📤 Sending expense data:', requestData);
+
+            const response = await fetch(`${API_URL}/expenses/add`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify(requestData)
             });
-            container.innerHTML = html;
+
+            const responseText = await response.text();
+            console.log('📥 Raw response:', responseText);
+
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse response:', responseText);
+                throw new Error('Server returned invalid response');
+            }
+
+            showLoading(false);
+
+            if (response.ok && data.success) {
+                alert('✅ Expense added successfully!');
+                loadExpenses();
+                loadBudgetSummary();
+            } else {
+                alert(`❌ Failed to add expense: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            showLoading(false);
+            alert(`❌ Error: ${error.message}`);
+            console.error('Add expense error:', error);
         }
-    } catch (error) {
-        container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--red);">❌ ${error.message}</div>`;
     }
-}
-
-async function loadBudgetSummary() {
-    try {
-        const response = await fetch(`${API_URL}/expenses`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        const data = await response.json();
-
-        if (data.success && data.budget_summary) {
-            const summary = data.budget_summary;
-            document.getElementById('totalBudget').textContent = 'Ksh ' + formatNumber(summary.total_budget || 0);
-            document.getElementById('totalSpent').textContent = 'Ksh ' + formatNumber(summary.total_spent || 0);
-            document.getElementById('totalRemaining').textContent = 'Ksh ' + formatNumber(summary.remaining_total || 0);
-
-            // Render budget bars
-            renderBudgetBars(summary.budgets);
-
-            // Render alerts
-            renderBudgetAlerts(summary.alerts);
-        }
-    } catch (error) {
-        console.error('Error loading budget summary:', error);
-    }
-}
-
-function renderBudgetBars(budgets) {
-    const container = document.getElementById('budgetBars');
-
-    if (!budgets || budgets.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center; padding:8px; color:var(--text-secondary); font-size:13px;">
-                No budgets set. Add expenses to start tracking!
-            </div>
-        `;
-        return;
-    }
-
-    let html = '';
-    budgets.slice(0, 8).forEach(budget => {
-        const percentage = Math.min(budget.percentage || 0, 100);
-        const barColor = percentage >= 100 ? 'var(--red)' : percentage >= 80 ? 'var(--amber)' : 'var(--green)';
-
-        html += `
-            <div style="margin-bottom:10px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary);">
-                    <span>${budget.icon || '📌'} ${budget.category_name}</span>
-                    <span>Ksh ${formatNumber(budget.spent)} / Ksh ${formatNumber(budget.budgeted)}</span>
-                </div>
-                <div style="height:6px; background:var(--bg-primary); border-radius:3px; overflow:hidden; margin-top:2px;">
-                    <div style="height:100%; width:${percentage}%; background:${barColor}; border-radius:3px; transition:width 0.5s;"></div>
-                </div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
-}
-
-function renderBudgetAlerts(alerts) {
-    const container = document.getElementById('budgetAlerts');
-    const alertList = document.getElementById('alertList');
-
-    if (!alerts || alerts.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-
-    container.style.display = 'block';
-    let html = '';
-    alerts.forEach(alert => {
-        html += `
-            <div style="font-size:13px; color:var(--amber); padding:4px 0;">
-                ⚠️ ${alert.category_name}: Used ${Math.round(alert.percentage)}% of budget (Ksh ${formatNumber(alert.spent)}/${formatNumber(alert.budgeted)})
-            </div>
-        `;
-    });
-    alertList.innerHTML = html;
-}
-
-function showAddExpense() {
-    document.getElementById('addExpenseModal').style.display = 'flex';
-    document.getElementById('expenseAmount').value = '';
-    document.getElementById('expenseDescription').value = '';
-    document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('expenseCategory').value = '';
-    document.getElementById('expensePaymentMethod').value = 'CASH';
-    document.getElementById('expenseChama').value = '';
-    loadExpenseCategories();
-    loadUserChamasForExpense();
-}
-
-function closeAddExpense() {
-    document.getElementById('addExpenseModal').style.display = 'none';
-}
-
-async function loadUserChamasForExpense() {
-    const select = document.getElementById('expenseChama');
-    select.innerHTML = '<option value="">None</option>';
-
-    try {
-        const response = await fetch(`${API_URL}/chama/list`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        const data = await response.json();
-
-        if (data.success && data.chamas) {
-            data.chamas.forEach(chama => {
-                const option = document.createElement('option');
-                option.value = chama.id;
-                option.textContent = chama.name;
-                select.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading chamas:', error);
-    }
-}
-async function saveExpense() {
-    // Get form values
-    const categoryId = document.getElementById('expenseCategory').value;
-    const amount = document.getElementById('expenseAmount').value.trim();
-    const description = document.getElementById('expenseDescription').value.trim();
-    const expenseDate = document.getElementById('expenseDate').value;
-    const paymentMethod = document.getElementById('expensePaymentMethod').value;
-    const chamaId = document.getElementById('expenseChama').value;
-
-    // Validate inputs
-    if (!categoryId) {
-        alert('❌ Please select a category');
-        return;
-    }
-
-    if (!amount || parseFloat(amount) <= 0) {
-        alert('❌ Please enter a valid amount');
-        document.getElementById('expenseAmount').focus();
-        return;
-    }
-
-    if (!expenseDate) {
-        alert('❌ Please select a date');
-        return;
-    }
-
-    // Close modal and show loading
-    closeAddExpense();
-    showLoading(true);
-
-    try {
-        // Build the request body as a JavaScript object
-        const requestData = {
-            category_id: parseInt(categoryId),
-            amount: parseFloat(amount),
-            expense_date: expenseDate
-        };
-
-        // Add optional fields if they have values
-        if (description) {
-            requestData.description = description;
-        } else {
-            requestData.description = "";
-        }
-
-        if (paymentMethod) {
-            requestData.payment_method = paymentMethod;
-        } else {
-            requestData.payment_method = "CASH";
-        }
-
-        if (chamaId && chamaId !== '') {
-            requestData.chama_id = parseInt(chamaId);
-        }
-
-        // Log the request for debugging
-        console.log('📤 Sending expense data:', requestData);
-
-        // Make the API call
-        const response = await fetch(`${API_URL}/expenses/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentToken}`
-            },
-            body: JSON.stringify(requestData)
-        });
-
-        // Get the response
-        const responseText = await response.text();
-        console.log('📥 Raw response:', responseText);
-
-        // Parse the response
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse response:', responseText);
-            throw new Error('Server returned invalid response');
-        }
-
-        showLoading(false);
-
-        if (response.ok && data.success) {
-            alert('✅ Expense added successfully!');
-            loadExpenses();
-            loadBudgetSummary();
-        } else {
-            alert(`❌ Failed to add expense: ${data.error || 'Unknown error'}`);
-        }
-    } catch (error) {
-        showLoading(false);
-        alert(`❌ Error: ${error.message}`);
-        console.error('Add expense error:', error);
-    }
-}
 
     // ============================================================
     // DEBTS
@@ -5676,6 +5781,287 @@ async function saveExpense() {
             showLoading(false);
             alert(`❌ Network error: ${error.message}`);
             console.error('Submit video error:', error);
+        }
+    }
+
+    // ============================================================
+    // PAYMENTS
+    // ============================================================
+
+    function showPayments() {
+        showScreen('payments');
+        selectedPaymentChamaId = null;
+        loadPaymentChamas();
+        loadPaymentHistory();
+        document.getElementById('paymentMethodsList').innerHTML = `
+            <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
+                Select a Chama to view payment methods
+            </div>
+        `;
+    }
+
+    async function loadPaymentChamas() {
+        const select = document.getElementById('paymentChamaSelect');
+        select.innerHTML = '<option value="">Loading...</option>';
+
+        try {
+            const response = await fetch(`${API_URL}/chama/list`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                select.innerHTML = '<option value="">Select a Chama...</option>';
+                data.chamas.forEach(chama => {
+                    if (chama.status === 'APPROVED' || chama.status === 'ACTIVE') {
+                        const option = document.createElement('option');
+                        option.value = chama.id;
+                        option.textContent = chama.name + ' (' + chama.role + ')';
+                        select.appendChild(option);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chamas:', error);
+            select.innerHTML = '<option value="">Error loading Chamas</option>';
+        }
+    }
+
+    async function loadPaymentMethods() {
+        const select = document.getElementById('paymentChamaSelect');
+        const chamaId = select.value;
+
+        if (!chamaId) {
+            document.getElementById('paymentMethodsList').innerHTML = `
+                <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
+                    Select a Chama to view payment methods
+                </div>
+            `;
+            return;
+        }
+
+        selectedPaymentChamaId = parseInt(chamaId);
+        const container = document.getElementById('paymentMethodsList');
+        container.innerHTML = `
+            <div style="text-align:center; padding:12px;">
+                <div class="spinner" style="margin:10px auto; width:24px; height:24px;"></div>
+                <div style="color:var(--text-secondary); font-size:13px;">Loading payment methods...</div>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${API_URL}/payment/methods?chama_id=${chamaId}`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const methods = data.methods || [];
+
+                if (methods.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:13px;">
+                            No payment methods configured for this Chama
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                methods.forEach(method => {
+                    const methodName = method.method_type.toUpperCase();
+                    const details = method.details || {};
+                    let detailsHtml = '';
+
+                    if (methodName === 'MPESA') {
+                        detailsHtml = `
+                            <div>📱 Paybill: <strong>${details.paybill || 'N/A'}</strong></div>
+                            <div>🔢 Account: <strong>${details.account_number || 'N/A'}</strong></div>
+                        `;
+                    } else if (methodName === 'BANK') {
+                        detailsHtml = `
+                            <div>🏦 Bank: <strong>${details.bank_name || 'N/A'}</strong></div>
+                            <div>👤 Account: <strong>${details.account_name || 'N/A'}</strong></div>
+                            <div>🔢 Account No: <strong>${details.account_number || 'N/A'}</strong></div>
+                            <div>📝 Reference: <strong>${details.reference || 'N/A'}</strong></div>
+                        `;
+                    } else if (methodName === 'CASH') {
+                        detailsHtml = `
+                            <div>💵 Cash payments accepted</div>
+                            <div>📍 Location: <strong>${details.location || 'N/A'}</strong></div>
+                        `;
+                    } else {
+                        detailsHtml = `<div>${JSON.stringify(details)}</div>`;
+                    }
+
+                    html += `
+                        <div class="payment-method-card">
+                            <div class="method-name">${methodName}</div>
+                            <div class="method-details">${detailsHtml}</div>
+                            ${method.is_active ? '<span class="method-badge">✅ Active</span>' : '<span class="method-badge" style="background:var(--red);">❌ Inactive</span>'}
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:12px; color:var(--red); font-size:13px;">
+                        ❌ ${data.error || 'Failed to load payment methods'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:12px; color:var(--red); font-size:13px;">
+                    ❌ Network error: ${error.message}
+                </div>
+            `;
+            console.error('Load payment methods error:', error);
+        }
+    }
+
+    async function initiatePayment() {
+        const chamaId = document.getElementById('paymentChamaSelect').value;
+        const amount = document.getElementById('initiatePaymentAmount').value.trim();
+        const phone = document.getElementById('initiatePaymentPhone').value.trim();
+        const description = document.getElementById('initiatePaymentDescription').value.trim();
+
+        if (!chamaId) {
+            alert('❌ Please select a Chama');
+            document.getElementById('paymentChamaSelect').focus();
+            return;
+        }
+
+        if (!amount || parseFloat(amount) <= 0) {
+            alert('❌ Please enter a valid amount');
+            document.getElementById('initiatePaymentAmount').focus();
+            return;
+        }
+
+        if (!confirm(`Initiate payment of Ksh ${formatNumber(parseFloat(amount))}?`)) {
+            return;
+        }
+
+        showLoading(true);
+
+        try {
+            const requestBody = {
+                chama_id: parseInt(chamaId),
+                amount: parseFloat(amount),
+                method: 'MPESA',
+                phone_number: phone || '',
+                description: description || ''
+            };
+
+            const response = await fetch(`${API_URL}/payment/initiate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json();
+            showLoading(false);
+
+            if (data.success) {
+                alert(`✅ Payment initiated successfully!\n\nTransaction ID: ${data.transaction_id}\nPayment ID: ${data.payment_id}\n\nYour payment will be processed shortly.`);
+                document.getElementById('initiatePaymentAmount').value = '';
+                document.getElementById('initiatePaymentPhone').value = '';
+                document.getElementById('initiatePaymentDescription').value = '';
+                loadPaymentHistory();
+            } else {
+                alert(`❌ Failed to initiate payment: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            showLoading(false);
+            alert(`❌ Network error: ${error.message}`);
+            console.error('Initiate payment error:', error);
+        }
+    }
+
+    async function loadPaymentHistory() {
+        const container = document.getElementById('paymentHistoryList');
+        container.innerHTML = `
+            <div style="text-align:center; padding:12px;">
+                <div class="spinner" style="margin:10px auto; width:24px; height:24px;"></div>
+                <div style="color:var(--text-secondary); font-size:13px;">Loading payment history...</div>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${API_URL}/payment/history`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const payments = data.payments || [];
+
+                if (payments.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:13px;">
+                            No payment history
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                payments.forEach(payment => {
+                    const statusColor = payment.status === 'completed' ? 'var(--green)' :
+                        payment.status === 'pending' ? 'var(--amber)' : 'var(--red)';
+                    const statusIcon = payment.status === 'completed' ? '✅' :
+                        payment.status === 'pending' ? '⏳' : '❌';
+                    const date = new Date(payment.created_at);
+                    const formattedDate = date.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const formattedTime = date.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
+
+                    html += `
+                        <div style="display:flex; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border-color);">
+                            <div style="flex:1;">
+                                <div style="font-size:14px; font-weight:500; color:var(--text-primary);">
+                                    ${payment.chama_name || 'Chama Payment'}
+                                </div>
+                                <div style="font-size:11px; color:var(--text-secondary);">
+                                    ${formattedDate} at ${formattedTime}
+                                </div>
+                                <div style="font-size:11px; color:var(--text-secondary);">
+                                    ${payment.transaction_id || 'TXN-' + payment.id}
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:16px; font-weight:700; color:var(--red);">
+                                    -Ksh ${formatNumber(payment.amount)}
+                                </div>
+                                <div style="font-size:11px; color:${statusColor};">
+                                    ${statusIcon} ${payment.status.toUpperCase()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:12px; color:var(--red); font-size:13px;">
+                        ❌ ${data.error || 'Failed to load payment history'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:12px; color:var(--red); font-size:13px;">
+                    ❌ Network error: ${error.message}
+                </div>
+            `;
+            console.error('Load payment history error:', error);
         }
     }
 
