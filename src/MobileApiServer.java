@@ -4229,6 +4229,9 @@ public class MobileApiServer {
     // ============================================================
 // ADD EXPENSE HANDLER
 // ============================================================
+    // ============================================================
+// ADD EXPENSE HANDLER
+// ============================================================
     static class AddExpenseHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -4273,7 +4276,14 @@ public class MobileApiServer {
                     );
                     pst.setInt(1, userId);
                     pst.setInt(2, categoryId);
-                    pst.setInt(3, chamaId > 0 ? chamaId : 0);
+
+                    // ✅ FIX: Handle NULL chama_id properly
+                    if (chamaId > 0) {
+                        pst.setInt(3, chamaId);
+                    } else {
+                        pst.setNull(3, Types.INTEGER);
+                    }
+
                     pst.setDouble(4, amount);
                     pst.setString(5, description);
                     pst.setDate(6, java.sql.Date.valueOf(expenseDate));
