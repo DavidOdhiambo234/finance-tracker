@@ -3050,7 +3050,24 @@ async function saveExpense() {
                 payment_method: paymentMethod,
                 chama_id: chamaId ? parseInt(chamaId) : 0
             })
-            }
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+            alert('✅ Expense added successfully!');
+            loadExpenses();
+            loadBudgetSummary();
+        } else {
+            alert(`❌ Failed to add expense: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Network error: ${error.message}`);
+        console.error('Add expense error:', error);
+    }
+}
 
 
     // ============================================================
