@@ -3018,7 +3018,6 @@ async function loadUserChamasForExpense() {
         console.error('Error loading chamas:', error);
     }
 }
-
 async function saveExpense() {
     const categoryId = document.getElementById('expenseCategory').value;
     const amount = document.getElementById('expenseAmount').value.trim();
@@ -3047,20 +3046,26 @@ async function saveExpense() {
     showLoading(true);
 
     try {
+        // Build the request body as an object first
+        const requestBody = {
+            category_id: parseInt(categoryId),
+            amount: parseFloat(amount),
+            description: description || "",
+            expense_date: expenseDate,
+            payment_method: paymentMethod || "CASH",
+            chama_id: chamaId ? parseInt(chamaId) : 0
+        };
+
+        // Log the request for debugging
+        console.log('Sending expense data:', requestBody);
+
         const response = await fetch(`${API_URL}/expenses/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentToken}`
             },
-            body: JSON.stringify({
-                category_id: parseInt(categoryId),
-                amount: parseFloat(amount),
-                description: description,
-                expense_date: expenseDate,
-                payment_method: paymentMethod,
-                chama_id: chamaId ? parseInt(chamaId) : 0
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
@@ -3070,6 +3075,8 @@ async function saveExpense() {
             alert('✅ Expense added successfully!');
             loadExpenses();
             loadBudgetSummary();
+            // Close the modal if it's still open
+            closeAddExpense();
         } else {
             alert(`❌ Failed to add expense: ${data.error || 'Unknown error'}`);
         }
