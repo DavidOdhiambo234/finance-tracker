@@ -2221,6 +2221,9 @@
             case 'debts':
                 showDebts();
                 break;
+            case 'expenses':      // <-- ADD THIS CASE
+            showExpenses();
+            break;
             case 'aiChat':
                 showAIChat();
                 break;
@@ -2468,6 +2471,9 @@
         } else if (target === 'notifications') {
             showNotifications();
         }
+           } else if (target === 'expenses') {   // <-- ADD THIS
+        showExpenses();
+            }
     }
 
     function handleLogout() {
