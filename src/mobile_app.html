@@ -3019,6 +3019,7 @@ async function loadUserChamasForExpense() {
     }
 }
 async function saveExpense() {
+    // Get form values
     const categoryId = document.getElementById('expenseCategory').value;
     const amount = document.getElementById('expenseAmount').value.trim();
     const description = document.getElementById('expenseDescription').value.trim();
@@ -3026,6 +3027,7 @@ async function saveExpense() {
     const paymentMethod = document.getElementById('expensePaymentMethod').value;
     const chamaId = document.getElementById('expenseChama').value;
 
+    // Validate inputs
     if (!categoryId) {
         alert('❌ Please select a category');
         return;
@@ -3042,51 +3044,76 @@ async function saveExpense() {
         return;
     }
 
+    // Close modal and show loading
     closeAddExpense();
     showLoading(true);
 
     try {
-        // Build the request body as an object first
-        const requestBody = {
+        // Build the request body as a JavaScript object
+        const requestData = {
             category_id: parseInt(categoryId),
             amount: parseFloat(amount),
-            description: description || "",
-            expense_date: expenseDate,
-            payment_method: paymentMethod || "CASH",
-            chama_id: chamaId ? parseInt(chamaId) : 0
+            expense_date: expenseDate
         };
 
-        // Log the request for debugging
-        console.log('Sending expense data:', requestBody);
+        // Add optional fields if they have values
+        if (description) {
+            requestData.description = description;
+        } else {
+            requestData.description = "";
+        }
 
+        if (paymentMethod) {
+            requestData.payment_method = paymentMethod;
+        } else {
+            requestData.payment_method = "CASH";
+        }
+
+        if (chamaId && chamaId !== '') {
+            requestData.chama_id = parseInt(chamaId);
+        }
+
+        // Log the request for debugging
+        console.log('📤 Sending expense data:', requestData);
+
+        // Make the API call
         const response = await fetch(`${API_URL}/expenses/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentToken}`
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestData)
         });
 
-        const data = await response.json();
+        // Get the response
+        const responseText = await response.text();
+        console.log('📥 Raw response:', responseText);
+
+        // Parse the response
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse response:', responseText);
+            throw new Error('Server returned invalid response');
+        }
+
         showLoading(false);
 
-        if (data.success) {
+        if (response.ok && data.success) {
             alert('✅ Expense added successfully!');
             loadExpenses();
             loadBudgetSummary();
-            // Close the modal if it's still open
-            closeAddExpense();
         } else {
             alert(`❌ Failed to add expense: ${data.error || 'Unknown error'}`);
         }
     } catch (error) {
         showLoading(false);
-        alert(`❌ Network error: ${error.message}`);
+        alert(`❌ Error: ${error.message}`);
         console.error('Add expense error:', error);
     }
 }
-
 
     // ============================================================
     // DEBTS
