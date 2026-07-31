@@ -89,11 +89,8 @@ public class MobileApiServer {
         server.createContext("/api/ai/chat", new AIChatHandler());
         server.createContext("/api/ai/savings-insight", new AISavingsInsightHandler());
         // ============================================================
-// EXPENSE & BUDGET ENDPOINTS
-// ============================================================
-        server.createContext("/api/expenses/categories", new ExpenseCategoriesHandler());
-       server.createContext("/api/expenses", new GetExpensesHandler());
-       server.createContext("/api/expenses/add", new AddExpenseHandler());
+
+
        server.createContext("/api/expenses/budget", new BudgetHandler());
 
         // ============================================================
@@ -110,6 +107,48 @@ public class MobileApiServer {
         server.createContext("/api/payment/status", new PaymentStatusHandler());
         server.createContext("/api/payment/methods", new PaymentMethodsHandler());
         server.createContext("/api/payment/history", new PaymentHistoryHandler());
+        // ============================================================
+// EXPENSE & BUDGET ENDPOINTS - MODIFIED VERSION
+// ============================================================
+
+// 1. GET BUDGETS - Shows all budgets for the current month
+        server.createContext("/api/budgets", new GetBudgetsHandler());
+
+// 2. SET/UPDATE BUDGET - Set budget for a category
+        server.createContext("/api/budgets/set", new SetBudgetHandler());
+
+// 3. DELETE BUDGET - Delete a budget
+        server.createContext("/api/budgets/delete", new DeleteBudgetHandler());
+
+// 4. GET BUDGET ITEMS - Get all items in a budget
+        server.createContext("/api/budget-items", new GetBudgetItemsHandler());
+
+// 5. ADD BUDGET ITEM - Add item user wants to buy
+        server.createContext("/api/budget-items/add", new AddBudgetItemHandler());
+
+// 6. UPDATE BUDGET ITEM - Modify budget item
+        server.createContext("/api/budget-items/update", new UpdateBudgetItemHandler());
+
+// 7. DELETE BUDGET ITEM - Delete budget item
+        server.createContext("/api/budget-items/delete", new DeleteBudgetItemHandler());
+
+// 8. GET EXPENSES - Get all expenses (things bought)
+        server.createContext("/api/expenses", new GetExpensesHandler());
+
+// 9. ADD EXPENSE - Record a purchase
+        server.createContext("/api/expenses/add", new AddExpenseHandler());
+
+// 10. UPDATE EXPENSE - Modify expense
+        server.createContext("/api/expenses/update", new UpdateExpenseHandler());
+
+// 11. DELETE EXPENSE - Delete expense
+        server.createContext("/api/expenses/delete", new DeleteExpenseHandler());
+
+// 12. GET EXPENSE CATEGORIES
+        server.createContext("/api/expenses/categories", new ExpenseCategoriesHandler());
+
+// 13. BUDGET SUMMARY - Get overall budget summary
+        server.createContext("/api/budget-summary", new BudgetSummaryHandler());
 
         // ============================================================
         // ✅ ROOT HANDLER - MUST BE BEFORE server.start()
@@ -4226,327 +4265,8 @@ public class MobileApiServer {
             }
         }
     }
-    // ============================================================
-// ADD EXPENSE HANDLER
-// ============================================================
-    // ============================================================
-// ADD EXPENSE HANDLER
-// ============================================================
-    static class AddExpenseHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                handleCors(exchange);
-                return;
-            }
 
-            if (!"POST".equals(exchange.getRequestMethod())) {
-                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
-                return;
-            }
 
-            try {
-                int userId = getUserIdFromToken(exchange);
-                if (userId < 0) {
-                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
-                    return;
-                }
-
-                JSONObject request = readRequestBody(exchange);
-                int categoryId = request.getInt("category_id");
-                double amount = request.getDouble("amount");
-                String description = request.optString("description", "");
-                String expenseDate = request.getString("expense_date");
-                String paymentMethod = request.optString("payment_method", "CASH");
-                int chamaId = request.optInt("chama_id", 0);
-
-                if (amount <= 0) {
-                    sendResponse(exchange, 400, "{\"error\":\"Amount must be greater than 0\"}");
-                    return;
-                }
-
-                try (Connection conn = SecureDatabaseConnection.connect()) {
-                    conn.setAutoCommit(false);
-
-                    // Insert expense
-                    PreparedStatement pst = conn.prepareStatement(
-                            "INSERT INTO expenses (user_id, category_id, chama_id, amount, description, expense_date, payment_method) " +
-                                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            Statement.RETURN_GENERATED_KEYS
-                    );
-                    pst.setInt(1, userId);
-                    pst.setInt(2, categoryId);
-
-                    // ✅ FIX: Handle NULL chama_id properly
-                    if (chamaId > 0) {
-                        pst.setInt(3, chamaId);
-                    } else {
-                        pst.setNull(3, Types.INTEGER);
-                    }
-
-                    pst.setDouble(4, amount);
-                    pst.setString(5, description);
-                    pst.setDate(6, java.sql.Date.valueOf(expenseDate));
-                    pst.setString(7, paymentMethod);
-                    pst.executeUpdate();
-
-                    ResultSet rs = pst.getGeneratedKeys();
-                    int expenseId = 0;
-                    if (rs.next()) {
-                        expenseId = rs.getInt(1);
-                    }
-                    rs.close();
-                    pst.close();
-
-                    // Update budget spent amount
-                    String monthYear = expenseDate.substring(0, 7) + "-01";
-                    PreparedStatement budgetPst = conn.prepareStatement(
-                            "UPDATE budgets SET spent = spent + ? " +
-                                    "WHERE user_id = ? AND category_id = ? AND month_year = ?"
-                    );
-                    budgetPst.setDouble(1, amount);
-                    budgetPst.setInt(2, userId);
-                    budgetPst.setInt(3, categoryId);
-                    budgetPst.setDate(4, java.sql.Date.valueOf(monthYear));
-                    int updated = budgetPst.executeUpdate();
-                    budgetPst.close();
-
-                    // If no budget exists, create one with default amount
-                    if (updated == 0) {
-                        PreparedStatement createBudget = conn.prepareStatement(
-                                "INSERT INTO budgets (user_id, category_id, month_year, amount, spent) " +
-                                        "SELECT ?, ?, ?, 10000, ? " +
-                                        "FROM expense_categories WHERE id = ?"
-                        );
-                        createBudget.setInt(1, userId);
-                        createBudget.setInt(2, categoryId);
-                        createBudget.setDate(3, java.sql.Date.valueOf(monthYear));
-                        createBudget.setDouble(4, amount);
-                        createBudget.setInt(5, categoryId);
-                        createBudget.executeUpdate();
-                        createBudget.close();
-                    }
-
-                    // Check for budget alert (80% and 100%)
-                    PreparedStatement alertPst = conn.prepareStatement(
-                            "SELECT id, amount, spent FROM budgets " +
-                                    "WHERE user_id = ? AND category_id = ? AND month_year = ?"
-                    );
-                    alertPst.setInt(1, userId);
-                    alertPst.setInt(2, categoryId);
-                    alertPst.setDate(3, java.sql.Date.valueOf(monthYear));
-                    ResultSet alertRs = alertPst.executeQuery();
-
-                    if (alertRs.next()) {
-                        double budgetAmount = alertRs.getDouble("amount");
-                        double spent = alertRs.getDouble("spent");
-                        double percentage = (spent / budgetAmount) * 100;
-
-                        String categoryName = getCategoryName(conn, categoryId);
-
-                        if (percentage >= 100) {
-                            NotificationService.create(userId,
-                                    "⚠️ Budget Alert: You've exceeded your " + categoryName + " budget of Ksh " + String.format("%,.0f", budgetAmount),
-                                    NotificationService.ALERT
-                            );
-                        } else if (percentage >= 80) {
-                            NotificationService.create(userId,
-                                    "⚠️ Budget Alert: You've used " + String.format("%.0f", percentage) + "% of your " + categoryName + " budget",
-                                    NotificationService.WARNING
-                            );
-                        }
-                    }
-                    alertRs.close();
-                    alertPst.close();
-
-                    conn.commit();
-
-                    JSONObject response = new JSONObject();
-                    response.put("success", true);
-                    response.put("message", "Expense added successfully!");
-                    response.put("expense_id", expenseId);
-                    sendResponse(exchange, 200, response.toString());
-
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                    sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
-            }
-        }
-
-        private String getCategoryName(Connection conn, int categoryId) throws SQLException {
-            PreparedStatement pst = conn.prepareStatement("SELECT category_name FROM expense_categories WHERE id = ?");
-            pst.setInt(1, categoryId);
-            ResultSet rs = pst.executeQuery();
-            if (rs.next()) {
-                return rs.getString("category_name");
-            }
-            return "Category";
-        }
-    }
-    // ============================================================
-// GET EXPENSES HANDLER
-// ============================================================
-    static class GetExpensesHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if ("OPTIONS".equals(exchange.getRequestMethod())) {
-                handleCors(exchange);
-                return;
-            }
-
-            if (!"GET".equals(exchange.getRequestMethod())) {
-                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
-                return;
-            }
-
-            try {
-                int userId = getUserIdFromToken(exchange);
-                if (userId < 0) {
-                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
-                    return;
-                }
-
-                Map<String, String> params = getQueryParams(exchange);
-                String startDate = params.getOrDefault("start_date", "");
-                String endDate = params.getOrDefault("end_date", "");
-                String limit = params.getOrDefault("limit", "50");
-
-                StringBuilder sql = new StringBuilder(
-                        "SELECT e.*, c.category_name as name, c.icon, c.color " +
-                                "FROM expenses e JOIN expense_categories c ON e.category_id = c.id " +
-                                "WHERE e.user_id = ?"
-                );
-                List<Object> values = new ArrayList<>();
-                values.add(userId);
-
-                if (!startDate.isEmpty()) {
-                    sql.append(" AND e.expense_date >= ?");
-                    values.add(java.sql.Date.valueOf(startDate));
-                }
-                if (!endDate.isEmpty()) {
-                    sql.append(" AND e.expense_date <= ?");
-                    values.add(java.sql.Date.valueOf(endDate));
-                }
-
-                sql.append(" ORDER BY e.expense_date DESC, e.id DESC LIMIT ?");
-                values.add(Integer.parseInt(limit));
-
-                try (Connection conn = SecureDatabaseConnection.connect();
-                     PreparedStatement pst = conn.prepareStatement(sql.toString())) {
-
-                    for (int i = 0; i < values.size(); i++) {
-                        pst.setObject(i + 1, values.get(i));
-                    }
-
-                    ResultSet rs = pst.executeQuery();
-                    JSONArray expenses = new JSONArray();
-                    double total = 0;
-
-                    while (rs.next()) {
-                        JSONObject exp = new JSONObject();
-                        exp.put("id", rs.getInt("id"));
-                        exp.put("category_id", rs.getInt("category_id"));
-                        exp.put("category_name", rs.getString("name"));
-                        exp.put("icon", rs.getString("icon") != null ? rs.getString("icon") : "📌");
-                        exp.put("color", rs.getString("color") != null ? rs.getString("color") : "#636E72");
-                        exp.put("amount", rs.getDouble("amount"));
-                        exp.put("description", rs.getString("description") != null ? rs.getString("description") : "");
-                        exp.put("expense_date", rs.getString("expense_date"));
-                        exp.put("payment_method", rs.getString("payment_method"));
-                        exp.put("chama_id", rs.getInt("chama_id"));
-                        exp.put("created_at", rs.getString("created_at"));
-                        expenses.put(exp);
-                        total += rs.getDouble("amount");
-                    }
-                    rs.close();
-
-                    // Get budget summary
-                    JSONObject budgetSummary = getBudgetSummary(conn, userId);
-
-                    JSONObject response = new JSONObject();
-                    response.put("success", true);
-                    response.put("expenses", expenses);
-                    response.put("total", total);
-                    response.put("count", expenses.length());
-                    response.put("budget_summary", budgetSummary);
-                    sendResponse(exchange, 200, response.toString());
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
-            }
-        }
-
-        private JSONObject getBudgetSummary(Connection conn, int userId) throws SQLException {
-            JSONObject summary = new JSONObject();
-
-            String currentMonth = java.time.LocalDate.now().withDayOfMonth(1).toString();
-            PreparedStatement pst = conn.prepareStatement(
-                    "SELECT b.*, c.category_name as name, c.icon, c.color, " +
-                            "(b.spent / b.amount * 100) as percentage " +
-                            "FROM budgets b JOIN expense_categories c ON b.category_id = c.id " +
-                            "WHERE b.user_id = ? AND b.month_year = ?"
-            );
-            pst.setInt(1, userId);
-            pst.setDate(2, java.sql.Date.valueOf(currentMonth));
-            ResultSet rs = pst.executeQuery();
-
-            JSONArray budgets = new JSONArray();
-            JSONArray alerts = new JSONArray();
-
-            while (rs.next()) {
-                JSONObject budget = new JSONObject();
-                budget.put("category_id", rs.getInt("category_id"));
-                budget.put("category_name", rs.getString("name"));
-                budget.put("icon", rs.getString("icon"));
-                budget.put("color", rs.getString("color"));
-                budget.put("budgeted", rs.getDouble("amount"));
-                budget.put("spent", rs.getDouble("spent"));
-                budget.put("remaining", rs.getDouble("amount") - rs.getDouble("spent"));
-                budget.put("percentage", rs.getDouble("percentage"));
-
-                if (rs.getDouble("percentage") >= 80) {
-                    alerts.put(budget);
-                }
-
-                budgets.put(budget);
-            }
-            rs.close();
-            pst.close();
-
-            // Get total budget and spending
-            PreparedStatement totalPst = conn.prepareStatement(
-                    "SELECT COALESCE(SUM(amount), 0) as total_budget, COALESCE(SUM(spent), 0) as total_spent " +
-                            "FROM budgets WHERE user_id = ? AND month_year = ?"
-            );
-            totalPst.setInt(1, userId);
-            totalPst.setDate(2, java.sql.Date.valueOf(currentMonth));
-            ResultSet totalRs = totalPst.executeQuery();
-
-            double totalBudget = 0;
-            double totalSpent = 0;
-            if (totalRs.next()) {
-                totalBudget = totalRs.getDouble("total_budget");
-                totalSpent = totalRs.getDouble("total_spent");
-            }
-            totalRs.close();
-            totalPst.close();
-
-            summary.put("total_budget", totalBudget);
-            summary.put("total_spent", totalSpent);
-            summary.put("remaining_total", totalBudget - totalSpent);
-            summary.put("budgets", budgets);
-            summary.put("alerts", alerts);
-
-            return summary;
-        }
-    }
     // ============================================================
 // BUDGET HANDLER
 // ============================================================
@@ -4597,6 +4317,1246 @@ public class MobileApiServer {
                     JSONObject response = new JSONObject();
                     response.put("success", true);
                     response.put("message", "Budget set successfully!");
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+    // ============================================================
+// GET BUDGETS HANDLER
+// ============================================================
+    static class GetBudgetsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                Map<String, String> params = getQueryParams(exchange);
+                String monthYear = params.getOrDefault("month", java.time.LocalDate.now().withDayOfMonth(1).toString());
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    PreparedStatement pst = conn.prepareStatement(
+                            "SELECT b.id, b.category_id, b.amount as budgeted, b.spent, " +
+                                    "c.category_name, c.icon, c.color, " +
+                                    "(b.spent / b.amount * 100) as percentage " +
+                                    "FROM budgets b JOIN expense_categories c ON b.category_id = c.id " +
+                                    "WHERE b.user_id = ? AND b.month_year = ? " +
+                                    "ORDER BY c.category_name"
+                    );
+                    pst.setInt(1, userId);
+                    pst.setDate(2, java.sql.Date.valueOf(monthYear));
+                    ResultSet rs = pst.executeQuery();
+
+                    JSONArray budgets = new JSONArray();
+                    double totalBudget = 0;
+                    double totalSpent = 0;
+
+                    while (rs.next()) {
+                        JSONObject budget = new JSONObject();
+                        budget.put("id", rs.getInt("id"));
+                        budget.put("category_id", rs.getInt("category_id"));
+                        budget.put("category_name", rs.getString("category_name"));
+                        budget.put("icon", rs.getString("icon") != null ? rs.getString("icon") : "📌");
+                        budget.put("color", rs.getString("color") != null ? rs.getString("color") : "#636E72");
+                        budget.put("budgeted", rs.getDouble("budgeted"));
+                        budget.put("spent", rs.getDouble("spent"));
+                        budget.put("remaining", rs.getDouble("budgeted") - rs.getDouble("spent"));
+                        budget.put("percentage", rs.getDouble("percentage"));
+
+                        // Determine status
+                        double pct = rs.getDouble("percentage");
+                        if (pct >= 100) {
+                            budget.put("status", "EXCEEDED");
+                        } else if (pct >= 80) {
+                            budget.put("status", "WARNING");
+                        } else {
+                            budget.put("status", "ON_TRACK");
+                        }
+
+                        budgets.put(budget);
+                        totalBudget += rs.getDouble("budgeted");
+                        totalSpent += rs.getDouble("spent");
+                    }
+                    rs.close();
+                    pst.close();
+
+                    // Get total expenses for the month (without budget)
+                    PreparedStatement totalPst = conn.prepareStatement(
+                            "SELECT COALESCE(SUM(amount), 0) as total_spent_all " +
+                                    "FROM expenses WHERE user_id = ? AND MONTH(expense_date) = ? AND YEAR(expense_date) = ?"
+                    );
+                    java.time.LocalDate date = java.time.LocalDate.parse(monthYear);
+                    totalPst.setInt(1, userId);
+                    totalPst.setInt(2, date.getMonthValue());
+                    totalPst.setInt(3, date.getYear());
+                    ResultSet totalRs = totalPst.executeQuery();
+                    double totalAllSpent = 0;
+                    if (totalRs.next()) {
+                        totalAllSpent = totalRs.getDouble("total_spent_all");
+                    }
+                    totalRs.close();
+                    totalPst.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("budgets", budgets);
+                    response.put("total_budget", totalBudget);
+                    response.put("total_spent", totalSpent);
+                    response.put("total_spent_all", totalAllSpent);
+                    response.put("remaining_total", totalBudget - totalSpent);
+                    response.put("month", monthYear);
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// SET BUDGET HANDLER
+// ============================================================
+    static class SetBudgetHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int categoryId = request.getInt("category_id");
+                double amount = request.getDouble("amount");
+                String monthYear = request.optString("month_year",
+                        java.time.LocalDate.now().withDayOfMonth(1).toString());
+
+                if (amount < 0) {
+                    sendResponse(exchange, 400, "{\"error\":\"Amount must be 0 or greater\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    PreparedStatement pst = conn.prepareStatement(
+                            "INSERT INTO budgets (user_id, category_id, month_year, amount) " +
+                                    "VALUES (?, ?, ?, ?) " +
+                                    "ON DUPLICATE KEY UPDATE amount = ?"
+                    );
+                    pst.setInt(1, userId);
+                    pst.setInt(2, categoryId);
+                    pst.setDate(3, java.sql.Date.valueOf(monthYear));
+                    pst.setDouble(4, amount);
+                    pst.setDouble(5, amount);
+                    pst.executeUpdate();
+                    pst.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("message", "Budget set successfully!");
+                    response.put("category_id", categoryId);
+                    response.put("amount", amount);
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// DELETE BUDGET HANDLER
+// ============================================================
+    static class DeleteBudgetHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"DELETE".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int budgetId = request.getInt("budget_id");
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Delete budget items first
+                    PreparedStatement deleteItems = conn.prepareStatement(
+                            "DELETE FROM budget_items WHERE budget_id = ? AND user_id = ?"
+                    );
+                    deleteItems.setInt(1, budgetId);
+                    deleteItems.setInt(2, userId);
+                    deleteItems.executeUpdate();
+                    deleteItems.close();
+
+                    // Delete budget
+                    PreparedStatement pst = conn.prepareStatement(
+                            "DELETE FROM budgets WHERE id = ? AND user_id = ?"
+                    );
+                    pst.setInt(1, budgetId);
+                    pst.setInt(2, userId);
+                    int deleted = pst.executeUpdate();
+                    pst.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", deleted > 0);
+                    response.put("message", deleted > 0 ? "Budget deleted successfully" : "Budget not found");
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// GET BUDGET ITEMS HANDLER
+// ============================================================
+    static class GetBudgetItemsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                Map<String, String> params = getQueryParams(exchange);
+                int budgetId = Integer.parseInt(params.getOrDefault("budget_id", "0"));
+                String status = params.getOrDefault("status", "");
+
+                if (budgetId == 0) {
+                    sendResponse(exchange, 400, "{\"error\":\"budget_id required\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    StringBuilder sql = new StringBuilder(
+                            "SELECT bi.*, c.category_name, c.icon, c.color " +
+                                    "FROM budget_items bi JOIN budgets b ON bi.budget_id = b.id " +
+                                    "JOIN expense_categories c ON b.category_id = c.id " +
+                                    "WHERE bi.user_id = ? AND bi.budget_id = ?"
+                    );
+                    List<Object> values = new ArrayList<>();
+                    values.add(userId);
+                    values.add(budgetId);
+
+                    if (!status.isEmpty()) {
+                        sql.append(" AND bi.status = ?");
+                        values.add(status);
+                    }
+
+                    sql.append(" ORDER BY bi.priority DESC, bi.estimated_cost DESC");
+
+                    PreparedStatement pst = conn.prepareStatement(sql.toString());
+                    for (int i = 0; i < values.size(); i++) {
+                        pst.setObject(i + 1, values.get(i));
+                    }
+
+                    ResultSet rs = pst.executeQuery();
+                    JSONArray items = new JSONArray();
+                    double totalEstimated = 0;
+                    double totalBought = 0;
+
+                    while (rs.next()) {
+                        JSONObject item = new JSONObject();
+                        item.put("id", rs.getInt("id"));
+                        item.put("budget_id", rs.getInt("budget_id"));
+                        item.put("item_name", rs.getString("item_name"));
+                        item.put("estimated_cost", rs.getDouble("estimated_cost"));
+                        item.put("priority", rs.getString("priority"));
+                        item.put("status", rs.getString("status"));
+                        item.put("notes", rs.getString("notes") != null ? rs.getString("notes") : "");
+                        item.put("category_name", rs.getString("category_name"));
+                        item.put("icon", rs.getString("icon") != null ? rs.getString("icon") : "📌");
+                        item.put("color", rs.getString("color") != null ? rs.getString("color") : "#636E72");
+                        item.put("created_at", rs.getString("created_at"));
+                        item.put("updated_at", rs.getString("updated_at"));
+                        items.put(item);
+
+                        if ("BOUGHT".equals(rs.getString("status"))) {
+                            totalBought += rs.getDouble("estimated_cost");
+                        }
+                        totalEstimated += rs.getDouble("estimated_cost");
+                    }
+                    rs.close();
+                    pst.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("items", items);
+                    response.put("total_estimated", totalEstimated);
+                    response.put("total_bought", totalBought);
+                    response.put("remaining", totalEstimated - totalBought);
+                    response.put("count", items.length());
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// ADD BUDGET ITEM HANDLER
+// ============================================================
+    static class AddBudgetItemHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int budgetId = request.getInt("budget_id");
+                String itemName = request.getString("item_name");
+                double estimatedCost = request.getDouble("estimated_cost");
+                String priority = request.optString("priority", "MEDIUM");
+                String notes = request.optString("notes", "");
+
+                if (itemName == null || itemName.trim().isEmpty()) {
+                    sendResponse(exchange, 400, "{\"error\":\"Item name is required\"}");
+                    return;
+                }
+
+                if (estimatedCost <= 0) {
+                    sendResponse(exchange, 400, "{\"error\":\"Estimated cost must be greater than 0\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Verify budget belongs to user
+                    PreparedStatement checkPst = conn.prepareStatement(
+                            "SELECT id FROM budgets WHERE id = ? AND user_id = ?"
+                    );
+                    checkPst.setInt(1, budgetId);
+                    checkPst.setInt(2, userId);
+                    ResultSet checkRs = checkPst.executeQuery();
+                    if (!checkRs.next()) {
+                        checkRs.close();
+                        checkPst.close();
+                        sendResponse(exchange, 404, "{\"error\":\"Budget not found\"}");
+                        return;
+                    }
+                    checkRs.close();
+                    checkPst.close();
+
+                    PreparedStatement pst = conn.prepareStatement(
+                            "INSERT INTO budget_items (user_id, budget_id, item_name, estimated_cost, priority, notes) " +
+                                    "VALUES (?, ?, ?, ?, ?, ?)",
+                            Statement.RETURN_GENERATED_KEYS
+                    );
+                    pst.setInt(1, userId);
+                    pst.setInt(2, budgetId);
+                    pst.setString(3, itemName);
+                    pst.setDouble(4, estimatedCost);
+                    pst.setString(5, priority);
+                    pst.setString(6, notes);
+                    pst.executeUpdate();
+
+                    ResultSet rs = pst.getGeneratedKeys();
+                    int itemId = 0;
+                    if (rs.next()) {
+                        itemId = rs.getInt(1);
+                    }
+                    rs.close();
+                    pst.close();
+
+                    // Update budget amount to reflect total planned spending
+                    PreparedStatement updateBudget = conn.prepareStatement(
+                            "UPDATE budgets b SET b.amount = (" +
+                                    "SELECT COALESCE(SUM(estimated_cost), 0) FROM budget_items " +
+                                    "WHERE budget_id = ? AND status != 'CANCELLED'" +
+                                    ") WHERE id = ?"
+                    );
+                    updateBudget.setInt(1, budgetId);
+                    updateBudget.setInt(2, budgetId);
+                    updateBudget.executeUpdate();
+                    updateBudget.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("message", "Budget item added successfully!");
+                    response.put("item_id", itemId);
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// UPDATE BUDGET ITEM HANDLER
+// ============================================================
+    static class UpdateBudgetItemHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"PUT".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int itemId = request.getInt("item_id");
+                String itemName = request.optString("item_name", "");
+                double estimatedCost = request.optDouble("estimated_cost", -1);
+                String priority = request.optString("priority", "");
+                String status = request.optString("status", "");
+                String notes = request.optString("notes", null);
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    StringBuilder sql = new StringBuilder("UPDATE budget_items SET ");
+                    List<Object> values = new ArrayList<>();
+                    boolean hasUpdate = false;
+
+                    if (!itemName.isEmpty()) {
+                        sql.append("item_name = ?, ");
+                        values.add(itemName);
+                        hasUpdate = true;
+                    }
+                    if (estimatedCost > 0) {
+                        sql.append("estimated_cost = ?, ");
+                        values.add(estimatedCost);
+                        hasUpdate = true;
+                    }
+                    if (!priority.isEmpty()) {
+                        sql.append("priority = ?, ");
+                        values.add(priority);
+                        hasUpdate = true;
+                    }
+                    if (!status.isEmpty()) {
+                        sql.append("status = ?, ");
+                        values.add(status);
+                        hasUpdate = true;
+                    }
+                    if (notes != null) {
+                        sql.append("notes = ?, ");
+                        values.add(notes);
+                        hasUpdate = true;
+                    }
+
+                    if (!hasUpdate) {
+                        sendResponse(exchange, 400, "{\"error\":\"No fields to update\"}");
+                        return;
+                    }
+
+                    sql.append("updated_at = NOW() WHERE id = ? AND user_id = ?");
+                    values.add(itemId);
+                    values.add(userId);
+
+                    PreparedStatement pst = conn.prepareStatement(sql.toString());
+                    for (int i = 0; i < values.size(); i++) {
+                        pst.setObject(i + 1, values.get(i));
+                    }
+                    int updated = pst.executeUpdate();
+                    pst.close();
+
+                    // Update budget amount if cost or status changed
+                    if (estimatedCost > 0 || !status.isEmpty()) {
+                        PreparedStatement updateBudget = conn.prepareStatement(
+                                "UPDATE budgets b SET b.amount = (" +
+                                        "SELECT COALESCE(SUM(estimated_cost), 0) FROM budget_items " +
+                                        "WHERE budget_id = b.id AND status != 'CANCELLED'" +
+                                        ") WHERE id = (SELECT budget_id FROM budget_items WHERE id = ?)"
+                        );
+                        updateBudget.setInt(1, itemId);
+                        updateBudget.executeUpdate();
+                        updateBudget.close();
+                    }
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", updated > 0);
+                    response.put("message", updated > 0 ? "Budget item updated successfully" : "Item not found");
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// DELETE BUDGET ITEM HANDLER
+// ============================================================
+    static class DeleteBudgetItemHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"DELETE".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int itemId = request.getInt("item_id");
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Get budget_id before deleting
+                    PreparedStatement getPst = conn.prepareStatement(
+                            "SELECT budget_id FROM budget_items WHERE id = ? AND user_id = ?"
+                    );
+                    getPst.setInt(1, itemId);
+                    getPst.setInt(2, userId);
+                    ResultSet rs = getPst.executeQuery();
+                    int budgetId = 0;
+                    if (rs.next()) {
+                        budgetId = rs.getInt("budget_id");
+                    }
+                    rs.close();
+                    getPst.close();
+
+                    if (budgetId == 0) {
+                        sendResponse(exchange, 404, "{\"error\":\"Item not found\"}");
+                        return;
+                    }
+
+                    // Delete item
+                    PreparedStatement pst = conn.prepareStatement(
+                            "DELETE FROM budget_items WHERE id = ? AND user_id = ?"
+                    );
+                    pst.setInt(1, itemId);
+                    pst.setInt(2, userId);
+                    int deleted = pst.executeUpdate();
+                    pst.close();
+
+                    // Update budget amount
+                    PreparedStatement updateBudget = conn.prepareStatement(
+                            "UPDATE budgets b SET b.amount = (" +
+                                    "SELECT COALESCE(SUM(estimated_cost), 0) FROM budget_items " +
+                                    "WHERE budget_id = ? AND status != 'CANCELLED'" +
+                                    ") WHERE id = ?"
+                    );
+                    updateBudget.setInt(1, budgetId);
+                    updateBudget.setInt(2, budgetId);
+                    updateBudget.executeUpdate();
+                    updateBudget.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", deleted > 0);
+                    response.put("message", deleted > 0 ? "Budget item deleted successfully" : "Item not found");
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// GET EXPENSES HANDLER (MODIFIED)
+// ============================================================
+    static class GetExpensesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                Map<String, String> params = getQueryParams(exchange);
+                String startDate = params.getOrDefault("start_date", "");
+                String endDate = params.getOrDefault("end_date", "");
+                String categoryId = params.getOrDefault("category_id", "");
+                String limit = params.getOrDefault("limit", "50");
+
+                StringBuilder sql = new StringBuilder(
+                        "SELECT e.*, c.category_name, c.icon, c.color, " +
+                                "(SELECT bi.item_name FROM budget_items bi " +
+                                " JOIN budget_item_expenses bie ON bie.budget_item_id = bi.id " +
+                                " WHERE bie.expense_id = e.id LIMIT 1) as budget_item_name " +
+                                "FROM expenses e LEFT JOIN expense_categories c ON e.category_id = c.id " +
+                                "WHERE e.user_id = ?"
+                );
+                List<Object> values = new ArrayList<>();
+                values.add(userId);
+
+                if (!startDate.isEmpty()) {
+                    sql.append(" AND e.expense_date >= ?");
+                    values.add(java.sql.Date.valueOf(startDate));
+                }
+                if (!endDate.isEmpty()) {
+                    sql.append(" AND e.expense_date <= ?");
+                    values.add(java.sql.Date.valueOf(endDate));
+                }
+                if (!categoryId.isEmpty()) {
+                    sql.append(" AND e.category_id = ?");
+                    values.add(Integer.parseInt(categoryId));
+                }
+
+                sql.append(" ORDER BY e.expense_date DESC, e.id DESC LIMIT ?");
+                values.add(Integer.parseInt(limit));
+
+                try (Connection conn = SecureDatabaseConnection.connect();
+                     PreparedStatement pst = conn.prepareStatement(sql.toString())) {
+
+                    for (int i = 0; i < values.size(); i++) {
+                        pst.setObject(i + 1, values.get(i));
+                    }
+
+                    ResultSet rs = pst.executeQuery();
+                    JSONArray expenses = new JSONArray();
+                    double total = 0;
+
+                    while (rs.next()) {
+                        JSONObject exp = new JSONObject();
+                        exp.put("id", rs.getInt("id"));
+                        exp.put("category_id", rs.getInt("category_id"));
+                        exp.put("category_name", rs.getString("category_name") != null ? rs.getString("category_name") : "Uncategorized");
+                        exp.put("icon", rs.getString("icon") != null ? rs.getString("icon") : "📌");
+                        exp.put("color", rs.getString("color") != null ? rs.getString("color") : "#636E72");
+                        exp.put("amount", rs.getDouble("amount"));
+                        exp.put("description", rs.getString("description") != null ? rs.getString("description") : "");
+                        exp.put("expense_date", rs.getString("expense_date"));
+                        exp.put("payment_method", rs.getString("payment_method") != null ? rs.getString("payment_method") : "CASH");
+                        exp.put("chama_id", rs.getInt("chama_id"));
+                        exp.put("created_at", rs.getString("created_at"));
+                        exp.put("budget_item_name", rs.getString("budget_item_name") != null ? rs.getString("budget_item_name") : "");
+                        expenses.put(exp);
+                        total += rs.getDouble("amount");
+                    }
+                    rs.close();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("expenses", expenses);
+                    response.put("total", total);
+                    response.put("count", expenses.length());
+                    sendResponse(exchange, 200, response.toString());
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// ADD EXPENSE HANDLER (MODIFIED - removes payment logic)
+// ============================================================
+    static class AddExpenseHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int categoryId = request.getInt("category_id");
+                double amount = request.getDouble("amount");
+                String description = request.optString("description", "");
+                String expenseDate = request.getString("expense_date");
+                String paymentMethod = request.optString("payment_method", "CASH");
+                Integer budgetItemId = request.has("budget_item_id") ? request.getInt("budget_item_id") : null;
+
+                if (amount <= 0) {
+                    sendResponse(exchange, 400, "{\"error\":\"Amount must be greater than 0\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    conn.setAutoCommit(false);
+
+                    // Insert expense
+                    PreparedStatement pst = conn.prepareStatement(
+                            "INSERT INTO expenses (user_id, category_id, amount, description, expense_date, payment_method) " +
+                                    "VALUES (?, ?, ?, ?, ?, ?)",
+                            Statement.RETURN_GENERATED_KEYS
+                    );
+                    pst.setInt(1, userId);
+                    pst.setInt(2, categoryId);
+                    pst.setDouble(3, amount);
+                    pst.setString(4, description);
+                    pst.setDate(5, java.sql.Date.valueOf(expenseDate));
+                    pst.setString(6, paymentMethod);
+                    pst.executeUpdate();
+
+                    ResultSet rs = pst.getGeneratedKeys();
+                    int expenseId = 0;
+                    if (rs.next()) {
+                        expenseId = rs.getInt(1);
+                    }
+                    rs.close();
+                    pst.close();
+
+                    // Link to budget item if provided
+                    if (budgetItemId != null && budgetItemId > 0) {
+                        // Check budget item belongs to user
+                        PreparedStatement checkItem = conn.prepareStatement(
+                                "SELECT id, budget_id, estimated_cost FROM budget_items WHERE id = ? AND user_id = ? AND status != 'CANCELLED'"
+                        );
+                        checkItem.setInt(1, budgetItemId);
+                        checkItem.setInt(2, userId);
+                        ResultSet itemRs = checkItem.executeQuery();
+
+                        if (itemRs.next()) {
+                            // Create link
+                            PreparedStatement linkPst = conn.prepareStatement(
+                                    "INSERT INTO budget_item_expenses (budget_item_id, expense_id, amount_applied) VALUES (?, ?, ?)"
+                            );
+                            linkPst.setInt(1, budgetItemId);
+                            linkPst.setInt(2, expenseId);
+                            linkPst.setDouble(3, Math.min(amount, itemRs.getDouble("estimated_cost")));
+                            linkPst.executeUpdate();
+                            linkPst.close();
+
+                            // Update budget item status to BOUGHT
+                            PreparedStatement updateItem = conn.prepareStatement(
+                                    "UPDATE budget_items SET status = 'BOUGHT' WHERE id = ?"
+                            );
+                            updateItem.setInt(1, budgetItemId);
+                            updateItem.executeUpdate();
+                            updateItem.close();
+                        }
+                        itemRs.close();
+                        checkItem.close();
+                    }
+
+                    // Update budget spent amount
+                    String monthYear = expenseDate.substring(0, 7) + "-01";
+                    PreparedStatement budgetPst = conn.prepareStatement(
+                            "UPDATE budgets SET spent = spent + ? " +
+                                    "WHERE user_id = ? AND category_id = ? AND month_year = ?"
+                    );
+                    budgetPst.setDouble(1, amount);
+                    budgetPst.setInt(2, userId);
+                    budgetPst.setInt(3, categoryId);
+                    budgetPst.setDate(4, java.sql.Date.valueOf(monthYear));
+                    int updated = budgetPst.executeUpdate();
+                    budgetPst.close();
+
+                    // If no budget exists, create one
+                    if (updated == 0) {
+                        PreparedStatement createBudget = conn.prepareStatement(
+                                "INSERT INTO budgets (user_id, category_id, month_year, amount, spent) " +
+                                        "SELECT ?, ?, ?, 0, ? " +
+                                        "FROM expense_categories WHERE id = ?"
+                        );
+                        createBudget.setInt(1, userId);
+                        createBudget.setInt(2, categoryId);
+                        createBudget.setDate(3, java.sql.Date.valueOf(monthYear));
+                        createBudget.setDouble(4, amount);
+                        createBudget.setInt(5, categoryId);
+                        createBudget.executeUpdate();
+                        createBudget.close();
+                    }
+
+                    conn.commit();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("message", "Expense added successfully!");
+                    response.put("expense_id", expenseId);
+                    sendResponse(exchange, 200, response.toString());
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// UPDATE EXPENSE HANDLER
+// ============================================================
+    static class UpdateExpenseHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"PUT".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int expenseId = request.getInt("expense_id");
+                Integer categoryId = request.has("category_id") ? request.getInt("category_id") : null;
+                Double amount = request.has("amount") ? request.getDouble("amount") : null;
+                String description = request.optString("description", null);
+                String expenseDate = request.optString("expense_date", null);
+                String paymentMethod = request.optString("payment_method", null);
+
+                // First, get the old expense
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    PreparedStatement getPst = conn.prepareStatement(
+                            "SELECT category_id, amount, expense_date FROM expenses WHERE id = ? AND user_id = ?"
+                    );
+                    getPst.setInt(1, expenseId);
+                    getPst.setInt(2, userId);
+                    ResultSet rs = getPst.executeQuery();
+
+                    if (!rs.next()) {
+                        rs.close();
+                        getPst.close();
+                        sendResponse(exchange, 404, "{\"error\":\"Expense not found\"}");
+                        return;
+                    }
+
+                    int oldCategoryId = rs.getInt("category_id");
+                    double oldAmount = rs.getDouble("amount");
+                    String oldDate = rs.getString("expense_date");
+                    rs.close();
+                    getPst.close();
+
+                    conn.setAutoCommit(false);
+
+                    // Build update query
+                    StringBuilder sql = new StringBuilder("UPDATE expenses SET ");
+                    List<Object> values = new ArrayList<>();
+                    boolean hasUpdate = false;
+
+                    if (categoryId != null) {
+                        sql.append("category_id = ?, ");
+                        values.add(categoryId);
+                        hasUpdate = true;
+                    }
+                    if (amount != null) {
+                        sql.append("amount = ?, ");
+                        values.add(amount);
+                        hasUpdate = true;
+                    }
+                    if (description != null) {
+                        sql.append("description = ?, ");
+                        values.add(description);
+                        hasUpdate = true;
+                    }
+                    if (expenseDate != null) {
+                        sql.append("expense_date = ?, ");
+                        values.add(java.sql.Date.valueOf(expenseDate));
+                        hasUpdate = true;
+                    }
+                    if (paymentMethod != null) {
+                        sql.append("payment_method = ?, ");
+                        values.add(paymentMethod);
+                        hasUpdate = true;
+                    }
+
+                    if (!hasUpdate) {
+                        conn.rollback();
+                        sendResponse(exchange, 400, "{\"error\":\"No fields to update\"}");
+                        return;
+                    }
+
+                    sql.append("updated_at = NOW() WHERE id = ? AND user_id = ?");
+                    values.add(expenseId);
+                    values.add(userId);
+
+                    PreparedStatement pst = conn.prepareStatement(sql.toString());
+                    for (int i = 0; i < values.size(); i++) {
+                        pst.setObject(i + 1, values.get(i));
+                    }
+                    int updated = pst.executeUpdate();
+                    pst.close();
+
+                    // Update budget if amount or category changed
+                    if (amount != null || categoryId != null || expenseDate != null) {
+                        String monthYear = (expenseDate != null ? expenseDate : oldDate).substring(0, 7) + "-01";
+                        int catId = categoryId != null ? categoryId : oldCategoryId;
+                        double newAmount = amount != null ? amount : oldAmount;
+                        double diff = newAmount - oldAmount;
+
+                        if (diff != 0 || categoryId != null) {
+                            // Update new category budget
+                            PreparedStatement updateNew = conn.prepareStatement(
+                                    "UPDATE budgets SET spent = spent + ? " +
+                                            "WHERE user_id = ? AND category_id = ? AND month_year = ?"
+                            );
+                            updateNew.setDouble(1, diff);
+                            updateNew.setInt(2, userId);
+                            updateNew.setInt(3, catId);
+                            updateNew.setDate(4, java.sql.Date.valueOf(monthYear));
+                            updateNew.executeUpdate();
+                            updateNew.close();
+
+                            // If category changed, update old category
+                            if (categoryId != null && oldCategoryId != categoryId) {
+                                PreparedStatement updateOld = conn.prepareStatement(
+                                        "UPDATE budgets SET spent = spent - ? " +
+                                                "WHERE user_id = ? AND category_id = ? AND month_year = ?"
+                                );
+                                updateOld.setDouble(1, oldAmount);
+                                updateOld.setInt(2, userId);
+                                updateOld.setInt(3, oldCategoryId);
+                                updateOld.setDate(4, java.sql.Date.valueOf(oldDate.substring(0, 7) + "-01"));
+                                updateOld.executeUpdate();
+                                updateOld.close();
+                            }
+                        }
+                    }
+
+                    conn.commit();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("message", "Expense updated successfully");
+                    sendResponse(exchange, 200, response.toString());
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    // ============================================================
+// DELETE EXPENSE HANDLER
+// ============================================================
+    static class DeleteExpenseHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"DELETE".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                JSONObject request = readRequestBody(exchange);
+                int expenseId = request.getInt("expense_id");
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Get expense details before deleting
+                    PreparedStatement getPst = conn.prepareStatement(
+                            "SELECT category_id, amount, expense_date FROM expenses WHERE id = ? AND user_id = ?"
+                    );
+                    getPst.setInt(1, expenseId);
+                    getPst.setInt(2, userId);
+                    ResultSet rs = getPst.executeQuery();
+
+                    if (!rs.next()) {
+                        rs.close();
+                        getPst.close();
+                        sendResponse(exchange, 404, "{\"error\":\"Expense not found\"}");
+                        return;
+                    }
+
+                    int categoryId = rs.getInt("category_id");
+                    double amount = rs.getDouble("amount");
+                    String expenseDate = rs.getString("expense_date");
+                    rs.close();
+                    getPst.close();
+
+                    conn.setAutoCommit(false);
+
+                    // Delete budget item links
+                    PreparedStatement deleteLinks = conn.prepareStatement(
+                            "DELETE FROM budget_item_expenses WHERE expense_id = ?"
+                    );
+                    deleteLinks.setInt(1, expenseId);
+                    deleteLinks.executeUpdate();
+                    deleteLinks.close();
+
+                    // Delete expense
+                    PreparedStatement pst = conn.prepareStatement(
+                            "DELETE FROM expenses WHERE id = ? AND user_id = ?"
+                    );
+                    pst.setInt(1, expenseId);
+                    pst.setInt(2, userId);
+                    int deleted = pst.executeUpdate();
+                    pst.close();
+
+                    // Update budget spent amount
+                    if (deleted > 0) {
+                        String monthYear = expenseDate.substring(0, 7) + "-01";
+                        PreparedStatement budgetPst = conn.prepareStatement(
+                                "UPDATE budgets SET spent = spent - ? " +
+                                        "WHERE user_id = ? AND category_id = ? AND month_year = ?"
+                        );
+                        budgetPst.setDouble(1, amount);
+                        budgetPst.setInt(2, userId);
+                        budgetPst.setInt(3, categoryId);
+                        budgetPst.setDate(4, java.sql.Date.valueOf(monthYear));
+                        budgetPst.executeUpdate();
+                        budgetPst.close();
+                    }
+
+                    conn.commit();
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", deleted > 0);
+                    response.put("message", deleted > 0 ? "Expense deleted successfully" : "Expense not found");
+                    sendResponse(exchange, 200, response.toString());
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+
+    // ============================================================
+// BUDGET SUMMARY HANDLER
+// ============================================================
+    static class BudgetSummaryHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                int userId = getUserIdFromToken(exchange);
+                if (userId < 0) {
+                    sendResponse(exchange, 401, "{\"error\":\"Unauthorized\"}");
+                    return;
+                }
+
+                Map<String, String> params = getQueryParams(exchange);
+                String monthYear = params.getOrDefault("month",
+                        java.time.LocalDate.now().withDayOfMonth(1).toString());
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Get budget summary
+                    PreparedStatement pst = conn.prepareStatement(
+                            "SELECT " +
+                                    "COALESCE(SUM(amount), 0) as total_budget, " +
+                                    "COALESCE(SUM(spent), 0) as total_spent, " +
+                                    "COUNT(*) as budget_count " +
+                                    "FROM budgets WHERE user_id = ? AND month_year = ?"
+                    );
+                    pst.setInt(1, userId);
+                    pst.setDate(2, java.sql.Date.valueOf(monthYear));
+                    ResultSet rs = pst.executeQuery();
+
+                    JSONObject summary = new JSONObject();
+                    if (rs.next()) {
+                        double totalBudget = rs.getDouble("total_budget");
+                        double totalSpent = rs.getDouble("total_spent");
+                        summary.put("total_budget", totalBudget);
+                        summary.put("total_spent", totalSpent);
+                        summary.put("remaining", totalBudget - totalSpent);
+                        summary.put("budget_count", rs.getInt("budget_count"));
+                        summary.put("percentage", totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
+                    }
+                    rs.close();
+                    pst.close();
+
+                    // Get budget items summary
+                    PreparedStatement itemPst = conn.prepareStatement(
+                            "SELECT " +
+                                    "COUNT(*) as total_items, " +
+                                    "SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_items, " +
+                                    "SUM(CASE WHEN status = 'BOUGHT' THEN 1 ELSE 0 END) as bought_items, " +
+                                    "SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_items, " +
+                                    "SUM(estimated_cost) as total_estimated, " +
+                                    "SUM(CASE WHEN status = 'BOUGHT' THEN estimated_cost ELSE 0 END) as total_bought " +
+                                    "FROM budget_items WHERE user_id = ? AND budget_id IN (SELECT id FROM budgets WHERE user_id = ? AND month_year = ?)"
+                    );
+                    itemPst.setInt(1, userId);
+                    itemPst.setInt(2, userId);
+                    itemPst.setDate(3, java.sql.Date.valueOf(monthYear));
+                    ResultSet itemRs = itemPst.executeQuery();
+
+                    if (itemRs.next()) {
+                        summary.put("total_items", itemRs.getInt("total_items"));
+                        summary.put("pending_items", itemRs.getInt("pending_items"));
+                        summary.put("bought_items", itemRs.getInt("bought_items"));
+                        summary.put("cancelled_items", itemRs.getInt("cancelled_items"));
+                        summary.put("total_estimated", itemRs.getDouble("total_estimated"));
+                        summary.put("total_bought", itemRs.getDouble("total_bought"));
+                    }
+                    itemRs.close();
+                    itemPst.close();
+
+                    // Get top spending categories
+                    PreparedStatement topPst = conn.prepareStatement(
+                            "SELECT c.category_name, c.icon, COALESCE(SUM(e.amount), 0) as total_spent " +
+                                    "FROM expense_categories c LEFT JOIN expenses e ON c.id = e.category_id AND e.user_id = ? " +
+                                    "AND MONTH(e.expense_date) = ? AND YEAR(e.expense_date) = ? " +
+                                    "GROUP BY c.id ORDER BY total_spent DESC LIMIT 5"
+                    );
+                    java.time.LocalDate date = java.time.LocalDate.parse(monthYear);
+                    topPst.setInt(1, userId);
+                    topPst.setInt(2, date.getMonthValue());
+                    topPst.setInt(3, date.getYear());
+                    ResultSet topRs = topPst.executeQuery();
+
+                    JSONArray topCategories = new JSONArray();
+                    while (topRs.next()) {
+                        JSONObject cat = new JSONObject();
+                        cat.put("name", topRs.getString("category_name"));
+                        cat.put("icon", topRs.getString("icon") != null ? topRs.getString("icon") : "📌");
+                        cat.put("total_spent", topRs.getDouble("total_spent"));
+                        topCategories.put(cat);
+                    }
+                    topRs.close();
+                    topPst.close();
+
+                    summary.put("top_categories", topCategories);
+                    summary.put("month", monthYear);
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("summary", summary);
                     sendResponse(exchange, 200, response.toString());
                 }
 
