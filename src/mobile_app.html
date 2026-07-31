@@ -1646,47 +1646,47 @@
 
     <div class="sidebar-label">Menu</div>
 
-    <button class="sidebar-item active" onclick="navigateToSidebar('dashboard')">
+    <button class="sidebar-item active" onclick="navigateTo('dashboard')">
         <span class="icon">🏠</span> Dashboard
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('chamas')">
+    <button class="sidebar-item" onclick="navigateTo('chamas')">
         <span class="icon">👥</span> My Chamas
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('createChama')">
+    <button class="sidebar-item" onclick="showCreateChama()">
         <span class="icon">➕</span> Create Chama
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('joinChama')">
+    <button class="sidebar-item" onclick="showJoinChama()">
         <span class="icon">🔑</span> Join Chama
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('addMembers')">
+    <button class="sidebar-item" onclick="showAddMembers()">
         <span class="icon">👤</span> Add Members
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('pendingRequests')">
+    <button class="sidebar-item" onclick="showPendingRequests()">
         <span class="icon">📋</span> Pending Requests
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('savings')">
+    <button class="sidebar-item" onclick="showFullSavings()">
         <span class="icon">💰</span> My Savings
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('debts')">
+    <button class="sidebar-item" onclick="showDebts()">
         <span class="icon">💳</span> Debt Reminders
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('expenses')">
-        <span class="icon">📊</span> Expenses & Budget
+    <button class="sidebar-item" onclick="showExpenses()">
+        <span class="icon">💰</span> Expenses
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('payments')">
-        <span class="icon">💳</span> Payments
+    <button class="sidebar-item" onclick="showBudgetScreen()">
+        <span class="icon">📊</span> Budget Planning
     </button>
 
     <div class="sidebar-divider"></div>
     <div class="sidebar-label">AI & More</div>
 
-    <button class="sidebar-item" onclick="navigateToSidebar('aiChat')">
+    <button class="sidebar-item" onclick="showAIChat()">
         <span class="icon">🤖</span> AI Chat
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('aiInsights')">
+    <button class="sidebar-item" onclick="showSavingsInsights()">
         <span class="icon">💡</span> AI Insights
     </button>
-    <button class="sidebar-item" onclick="navigateToSidebar('videos')">
+    <button class="sidebar-item" onclick="showVideos()">
         <span class="icon">📹</span> Business Videos
     </button>
 
@@ -2464,14 +2464,38 @@
     </div>
 </div>
 
-<!-- ============================================================
-     NEW: ENHANCED EXPENSES SCREEN
-     ============================================================ -->
+<!-- EXPENSES SCREEN -->
 <div id="expensesScreen" class="screen">
     <div class="detail-header">
         <button class="back-btn" onclick="goBackFromExpenses()">‹</button>
         <span class="title">📊 Expenses & Budget</span>
         <button onclick="showAddExpenseModal()" style="background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:600;">+ Add</button>
+    </div>
+
+    <!-- Quick Start Guide -->
+    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--amber);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 20px;">💡</span>
+            <span style="font-size: 14px; font-weight: 600; color: var(--amber);">Quick Start Guide</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
+                <span style="color: var(--green); font-weight: 700; min-width: 20px;">1️⃣</span>
+                <span><strong style="color: var(--text-primary);">Set a Budget</strong> - Click the "Budget" button to set how much you want to spend per category (e.g., Food: Ksh 10,000)</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
+                <span style="color: var(--amber); font-weight: 700; min-width: 20px;">2️⃣</span>
+                <span><strong style="color: var(--text-primary);">Add Items to Buy</strong> - List things you want to buy with estimated costs. This helps you plan your spending!</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
+                <span style="color: var(--red); font-weight: 700; min-width: 20px;">3️⃣</span>
+                <span><strong style="color: var(--text-primary);">Record Expenses</strong> - Track what you actually spend. You can link expenses to items from your "Items to Buy" list!</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <span style="color: var(--cyan); font-weight: 700; min-width: 20px;">4️⃣</span>
+                <span><strong style="color: var(--text-primary);">Monitor Progress</strong> - Watch your budget progress bars and charts to see how you're doing!</span>
+            </div>
+        </div>
     </div>
 
     <!-- Budget Summary -->
@@ -2545,14 +2569,48 @@
     </div>
 </div>
 
-<!-- ============================================================
-     NEW: BUDGET PLANNING SCREEN
-     ============================================================ -->
+<!-- BUDGET PLANNING SCREEN -->
 <div id="budgetScreen" class="screen">
     <div class="detail-header">
         <button class="back-btn" onclick="goBackFromBudget()">‹</button>
         <span class="title">📊 Budget Planning</span>
         <button class="btn btn-amber" onclick="showSetBudgetModal()" style="width:auto; padding:8px 16px; font-size:12px; background:var(--amber); color:var(--bg-primary);">+ Set Budget</button>
+    </div>
+
+    <!-- How Budgeting Works Guide -->
+    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--green);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <span style="font-size: 20px;">📚</span>
+            <span style="font-size: 14px; font-weight: 600; color: var(--green);">How Budgeting Works</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
+            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
+                <span style="color: var(--green); font-weight: 700; min-width: 24px;">📊</span>
+                <span><strong style="color: var(--text-primary);">Set Budgets</strong> - Plan how much to spend in each category. Example: Food Ksh 10,000, Transport Ksh 5,000</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
+                <span style="color: var(--amber); font-weight: 700; min-width: 24px;">🛒</span>
+                <span><strong style="color: var(--text-primary);">Add Items</strong> - List specific items you plan to buy with estimated costs. This helps you stay focused on what you need!</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
+                <span style="color: var(--red); font-weight: 700; min-width: 24px;">💰</span>
+                <span><strong style="color: var(--text-primary);">Track Spending</strong> - Record what you actually bought. This shows you where your money really goes!</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
+                <span style="color: var(--cyan); font-weight: 700; min-width: 24px;">📈</span>
+                <span><strong style="color: var(--text-primary);">Progress Bars</strong> -
+                    <span style="color: var(--green);">🟢 Green</span> = On track (0-79%),
+                    <span style="color: var(--amber);">🟡 Yellow</span> = Warning (80-99%),
+                    <span style="color: var(--red);">🔴 Red</span> = Exceeded (100%+)
+                </span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border-color); align-items: flex-start;">
+                <span style="color: var(--purple); font-weight: 700; min-width: 24px;">💡</span>
+                <span style="font-size: 12px; color: var(--text-secondary);">
+                    <strong style="color: var(--text-primary);">Pro Tip:</strong> When you buy something from your "Items to Buy" list, link the expense to the budget item. This automatically marks it as "Bought" and tracks your spending!
+                </span>
+            </div>
+        </div>
     </div>
 
     <div class="budget-summary-card mt-16">
@@ -2793,7 +2851,8 @@
     </div>
 </div>
 
-<!-- BOTTOM NAVIGATION -->
+
+<!-- BOTTOM NAVIGATION - OPTION 1: Core Features -->
 <div class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-item active" onclick="navigateTo('dashboard')">
         <span class="icon">🏠</span> Home
@@ -2801,17 +2860,14 @@
     <button class="nav-item" onclick="navigateTo('chamas')">
         <span class="icon">👥</span> Chamas
     </button>
-    <button class="nav-item" onclick="navigateTo('expenses')">
+    <button class="nav-item" onclick="showExpenses()">
         <span class="icon">💰</span> Expenses
     </button>
-    <button class="nav-item" onclick="navigateTo('payments')">
-        <span class="icon">💳</span> Payments
+    <button class="nav-item" onclick="showFullSavings()">
+        <span class="icon">🏦</span> Savings
     </button>
-    <button class="nav-item" onclick="navigateTo('profile')">
+    <button class="nav-item" onclick="showProfile()">
         <span class="icon">👤</span> Profile
-    </button>
-    <button class="nav-item" onclick="handleLogout()">
-        <span class="icon">🚪</span> Logout
     </button>
 </div>
 
