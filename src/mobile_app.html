@@ -4414,70 +4414,88 @@
         }
     }
 
-    async function recordPaymentChama(chamaId) {
-        const select = document.getElementById('paymentMemberSelect');
-        const amountInput = document.getElementById('paymentAmountChama');
-        const methodSelect = document.getElementById('paymentMethodChama');
+async function recordPaymentChama(chamaId) {
+    const select = document.getElementById('paymentMemberSelect');
+    const amountInput = document.getElementById('paymentAmountChama');
+    const methodSelect = document.getElementById('paymentMethodChama');
 
-        const selectedValue = select.value;
-        const amount = amountInput.value.trim();
-        const method = methodSelect.value;
+    const selectedValue = select.value;
+    const amount = amountInput.value.trim();
+    const method = methodSelect.value;
 
-        if (!selectedValue) {
-            alert('❌ Please select a member');
-            return;
-        }
-
-        if (!amount || parseFloat(amount) <= 0) {
-            alert('❌ Please enter a valid amount');
-            amountInput.focus();
-            return;
-        }
-
-        try {
-            const memberData = JSON.parse(selectedValue);
-            const memberId = memberData.id;
-            const memberName = memberData.name;
-
-            if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
-                return;
-            }
-
-            showLoading(true);
-
-            const response = await fetch(`${API_URL}/chama/contribute`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`
-                },
-                body: JSON.stringify({
-                    chama_id: chamaId,
-                    user_id: memberId,
-                    amount: parseFloat(amount),
-                    payment_method: method
-                })
-            });
-
-            const data = await response.json();
-            showLoading(false);
-
-            if (data.success) {
-                alert(
-                    `✅ Payment recorded!\n\nMember: ${data.member_name}\nAmount: Ksh ${formatNumber(data.amount)}\nMethod: ${data.payment_method}`
-                    );
-                const overlay = document.querySelector('div[style*="fixed"]');
-                if (overlay) overlay.remove();
-                viewChama(chamaId);
-            } else {
-                alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Network error: ${error.message}`);
-            console.error('Record payment error:', error);
-        }
+    if (!selectedValue) {
+        alert('❌ Please select a member');
+        return;
     }
+
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('❌ Please enter a valid amount');
+        amountInput.focus();
+        return;
+    }
+
+    try {
+        const memberData = JSON.parse(selectedValue);
+        const memberId = memberData.id;
+        const memberName = memberData.name;
+
+        if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
+            return;
+        }
+
+        showLoading(true);
+
+        // Log the request for debugging
+        const requestBody = {
+            chama_id: chamaId,
+            user_id: memberId,
+            amount: parseFloat(amount),
+            payment_method: method
+        };
+        console.log('📤 Sending payment request:', requestBody);
+
+        const response = await fetch(`${API_URL}/chama/contribute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        // Log response status
+        console.log('📡 Payment response status:', response.status);
+
+        // Get raw response text first
+        const responseText = await response.text();
+        console.log('📥 Raw payment response:', responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Failed to parse response:', responseText);
+            throw new Error('Server returned invalid JSON: ' + responseText.substring(0, 100));
+        }
+
+        showLoading(false);
+
+        if (response.ok && data.success) {
+            alert(
+                `✅ Payment recorded!\n\nMember: ${data.member_name}\nAmount: Ksh ${formatNumber(data.amount)}\nMethod: ${data.payment_method}`
+            );
+            const overlay = document.querySelector('div[style*="fixed"]');
+            if (overlay) overlay.remove();
+            viewChama(chamaId);
+        } else {
+            alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Network error: ${error.message}`);
+        console.error('Record payment error:', error);
+    }
+}
 
     // ============================================================
     // PAYMENT DETAILS EDITOR (Chama)
@@ -6521,21 +6539,41 @@
         loadCategories();
     }
 
-    // Load Categories
-    async function loadCategories() {
-        try {
-            const response = await fetch(`${API_URL}/expenses/categories`, {
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            });
-            const data = await response.json();
-            if (data.success) {
-                allCategories = data.categories || [];
-                populateCategorySelects(allCategories);
+ async function loadCategories() {
+    try {
+        const token = localStorage.getItem('token');
+        console.log('🔑 Token being sent:', token ? token.substring(0, 20) + '...' : 'No token');
+
+        const response = await fetch(`${API_URL}/expenses/categories`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
-        } catch (error) {
-            console.error('Error loading categories:', error);
+        });
+
+        console.log('📡 Categories response status:', response.status);
+
+        if (response.status === 401) {
+            console.log('❌ Unauthorized - Please login again');
+            // Show toast message to user
+            showToast('⚠️ Session expired. Please login again.');
+            // Optionally redirect to login
+            setTimeout(() => handleLogout(), 2000);
+            return;
         }
+
+        const data = await response.json();
+        console.log('📦 Categories data:', data);
+
+        if (data.success) {
+            allCategories = data.categories || [];
+            populateCategorySelects(allCategories);
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        showToast('❌ Failed to load categories: ' + error.message);
     }
+}
 
     function populateCategorySelects(categories) {
         // Budget category select
