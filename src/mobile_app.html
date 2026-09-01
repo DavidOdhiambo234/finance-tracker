@@ -3311,11 +3311,23 @@
 
         showScreen('dashboard');
     }
+    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
+    sessionStorage.removeItem('_logoutInProgress');
+    // Already showing login, don't auto-login
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('registerScreen').style.display = 'none';
+    document.getElementById('appHeader').style.display = 'none';
+    document.getElementById('bottomNav').style.display = 'none';
+     }
 
   function handleLogout() {
+    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
+        return;
+    }
+
     if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.setItem('_logoutInProgress', 'true');
+        localStorage.clear();
         currentToken = null;
         currentUser = null;
         document.getElementById('appHeader').style.display = 'none';
