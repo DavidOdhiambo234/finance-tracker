@@ -3312,19 +3312,20 @@
         showScreen('dashboard');
     }
 
-    function handleLogout() {
-        if (confirm('Are you sure you want to logout?')) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            currentToken = null;
-            currentUser = null;
-            document.getElementById('appHeader').style.display = 'none';
-            document.getElementById('bottomNav').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'block';
-            document.getElementById('loginPassword').value = '';
-            closeSidebar();
-        }
+  function handleLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        currentToken = null;
+        currentUser = null;
+        document.getElementById('appHeader').style.display = 'none';
+        document.getElementById('bottomNav').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('loginPassword').value = '';
+        closeSidebar();
+        window.location.reload();
     }
+}
 
     // ============================================================
     // LOADING & UTILITY
