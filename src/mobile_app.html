@@ -3320,27 +3320,26 @@
     document.getElementById('bottomNav').style.display = 'none';
      }
 
- function handleLogout() {
-    // Check if already logging out
-    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
+let logoutInProgress = false;
+
+function handleLogout() {
+    // Prevent multiple calls
+    if (logoutInProgress) {
         console.log('⏳ Logout already in progress');
         return;
     }
 
+    // Show confirmation once
     if (confirm('Are you sure you want to logout?')) {
-        console.log('🚪 Logging out...');
+        logoutInProgress = true;
 
-        // Set flag immediately to prevent loops
-        sessionStorage.setItem('_logoutInProgress', 'true');
-
-        // Clear everything
+        // Clear storage
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        localStorage.clear();
         currentToken = null;
         currentUser = null;
 
-        // Reset UI - Show login first
+        // Reset UI
         document.getElementById('appHeader').style.display = 'none';
         document.getElementById('bottomNav').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'block';
@@ -3348,11 +3347,11 @@
         document.getElementById('loginPassword').value = '';
         closeSidebar();
 
-        // Remove the flag after a moment, then reload
+        // Reload page after a brief delay
         setTimeout(function() {
-            sessionStorage.removeItem('_logoutInProgress');
+            logoutInProgress = false;
             window.location.reload();
-        }, 100);
+        }, 200);
     }
 }
 
