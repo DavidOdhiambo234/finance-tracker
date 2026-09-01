@@ -1258,7 +1258,7 @@
         }
 
         /* ============================================================
-           BUDGET PLANNING - NEW STYLES
+           BUDGET PLANNING - SIMPLIFIED STYLES
            ============================================================ */
         .budget-summary-card {
             background: var(--bg-secondary);
@@ -2464,37 +2464,23 @@
     </div>
 </div>
 
-<!-- EXPENSES SCREEN -->
+<!-- ============================================================
+     SIMPLIFIED EXPENSES SCREEN
+     ============================================================ -->
 <div id="expensesScreen" class="screen">
     <div class="detail-header">
         <button class="back-btn" onclick="goBackFromExpenses()">‹</button>
-        <span class="title">📊 Expenses & Budget</span>
+        <span class="title">💰 My Expenses</span>
         <button onclick="showAddExpenseModal()" style="background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:600;">+ Add</button>
     </div>
 
-    <!-- Quick Start Guide -->
-    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--amber);">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 20px;">💡</span>
-            <span style="font-size: 14px; font-weight: 600; color: var(--amber);">Quick Start Guide</span>
-        </div>
-        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
-            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
-                <span style="color: var(--green); font-weight: 700; min-width: 20px;">1️⃣</span>
-                <span><strong style="color: var(--text-primary);">Set a Budget</strong> - Click the "Budget" button to set how much you want to spend per category (e.g., Food: Ksh 10,000)</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
-                <span style="color: var(--amber); font-weight: 700; min-width: 20px;">2️⃣</span>
-                <span><strong style="color: var(--text-primary);">Add Items to Buy</strong> - List things you want to buy with estimated costs. This helps you plan your spending!</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 4px; align-items: flex-start;">
-                <span style="color: var(--red); font-weight: 700; min-width: 20px;">3️⃣</span>
-                <span><strong style="color: var(--text-primary);">Record Expenses</strong> - Track what you actually spend. You can link expenses to items from your "Items to Buy" list!</span>
-            </div>
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-                <span style="color: var(--cyan); font-weight: 700; min-width: 20px;">4️⃣</span>
-                <span><strong style="color: var(--text-primary);">Monitor Progress</strong> - Watch your budget progress bars and charts to see how you're doing!</span>
-            </div>
+    <!-- Quick Guide -->
+    <div style="background: var(--bg-card); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--amber);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">💡</span>
+            <span style="font-size: 12px; color: var(--text-secondary);">
+                    <strong style="color: var(--text-primary);">Simple:</strong> Set budgets, add items to buy, track spending!
+                </span>
         </div>
     </div>
 
@@ -2534,21 +2520,21 @@
         </div>
     </div>
 
-    <!-- Budget Items (Things to buy) -->
+    <!-- Items to Buy -->
     <div class="budget-items-section">
         <div class="section-header">
             <span class="title">🛒 Items to Buy</span>
-            <button class="btn btn-green" onclick="showAddBudgetItemModal()" style="width:auto; padding:4px 12px; font-size:11px;">+ Add Item</button>
+            <button class="btn btn-green" onclick="showAddBudgetItemModal()" style="width:auto; padding:4px 12px; font-size:11px;">+ Add</button>
         </div>
         <div id="budgetItemsList">
             <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
                 <div class="spinner" style="width:24px; height:24px; margin:10px auto;"></div>
-                Loading budget items...
+                Loading items...
             </div>
         </div>
     </div>
 
-    <!-- Chart - Spending by Category -->
+    <!-- Chart -->
     <div class="chart-container">
         <div class="chart-title">📈 Spending by Category</div>
         <canvas id="expenseChart"></canvas>
@@ -2569,7 +2555,9 @@
     </div>
 </div>
 
-<!-- BUDGET PLANNING SCREEN -->
+<!-- ============================================================
+     SIMPLIFIED BUDGET SCREEN
+     ============================================================ -->
 <div id="budgetScreen" class="screen">
     <div class="detail-header">
         <button class="back-btn" onclick="goBackFromBudget()">‹</button>
@@ -2577,38 +2565,18 @@
         <button class="btn btn-amber" onclick="showSetBudgetModal()" style="width:auto; padding:8px 16px; font-size:12px; background:var(--amber); color:var(--bg-primary);">+ Set Budget</button>
     </div>
 
-    <!-- How Budgeting Works Guide -->
-    <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--green);">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-            <span style="font-size: 20px;">📚</span>
-            <span style="font-size: 14px; font-weight: 600; color: var(--green);">How Budgeting Works</span>
+    <!-- How it Works -->
+    <div style="background: var(--bg-card); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--green);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">📚</span>
+            <span style="font-size: 13px; font-weight: 600; color: var(--green);">How it Works</span>
         </div>
-        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.8;">
-            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-                <span style="color: var(--green); font-weight: 700; min-width: 24px;">📊</span>
-                <span><strong style="color: var(--text-primary);">Set Budgets</strong> - Plan how much to spend in each category. Example: Food Ksh 10,000, Transport Ksh 5,000</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-                <span style="color: var(--amber); font-weight: 700; min-width: 24px;">🛒</span>
-                <span><strong style="color: var(--text-primary);">Add Items</strong> - List specific items you plan to buy with estimated costs. This helps you stay focused on what you need!</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-                <span style="color: var(--red); font-weight: 700; min-width: 24px;">💰</span>
-                <span><strong style="color: var(--text-primary);">Track Spending</strong> - Record what you actually bought. This shows you where your money really goes!</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-                <span style="color: var(--cyan); font-weight: 700; min-width: 24px;">📈</span>
-                <span><strong style="color: var(--text-primary);">Progress Bars</strong> -
-                    <span style="color: var(--green);">🟢 Green</span> = On track (0-79%),
-                    <span style="color: var(--amber);">🟡 Yellow</span> = Warning (80-99%),
-                    <span style="color: var(--red);">🔴 Red</span> = Exceeded (100%+)
-                </span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border-color); align-items: flex-start;">
-                <span style="color: var(--purple); font-weight: 700; min-width: 24px;">💡</span>
-                <span style="font-size: 12px; color: var(--text-secondary);">
-                    <strong style="color: var(--text-primary);">Pro Tip:</strong> When you buy something from your "Items to Buy" list, link the expense to the budget item. This automatically marks it as "Bought" and tracks your spending!
-                </span>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+            <div>1️⃣ Set a <strong style="color:var(--text-primary);">budget</strong> for each category</div>
+            <div>2️⃣ Add <strong style="color:var(--text-primary);">items</strong> you want to buy with estimated cost</div>
+            <div>3️⃣ Track <strong style="color:var(--text-primary);">spending</strong> and watch the graph!</div>
+            <div style="margin-top:4px; font-size:11px; color:var(--amber);">
+                💡 <span style="color:var(--text-secondary);">Green = On track, Yellow = Warning, Red = Exceeded</span>
             </div>
         </div>
     </div>
@@ -2626,11 +2594,10 @@
         </div>
     </div>
 
-    <!-- Budget Items Summary -->
     <div class="budget-items-section">
         <div class="section-header">
-            <span class="title">🛒 All Budget Items</span>
-            <button class="btn btn-green" onclick="showAddBudgetItemModal()" style="width:auto; padding:4px 12px; font-size:11px;">+ Add Item</button>
+            <span class="title">🛒 All Items to Buy</span>
+            <button class="btn btn-green" onclick="showAddBudgetItemModal()" style="width:auto; padding:4px 12px; font-size:11px;">+ Add</button>
         </div>
         <div id="budgetItemsFullList">
             <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
@@ -2642,7 +2609,7 @@
 </div>
 
 <!-- ============================================================
-     NEW: MODALS FOR BUDGET & EXPENSES
+     MODALS
      ============================================================ -->
 
 <!-- SET BUDGET MODAL -->
@@ -2655,18 +2622,18 @@
         <div class="form-group">
             <label>Category</label>
             <select id="budgetCategorySelect">
-                <option value="">Loading categories...</option>
+                <option value="">Loading...</option>
             </select>
         </div>
         <div class="form-group">
-            <label>Budget Amount (Ksh)</label>
-            <input type="number" id="budgetAmountInput" placeholder="Enter budget amount" min="0">
+            <label>Amount (Ksh)</label>
+            <input type="number" id="budgetAmountInput" placeholder="Enter amount" min="0">
         </div>
         <div class="form-group">
             <label>Month</label>
             <input type="month" id="budgetMonthSelect">
         </div>
-        <button class="btn btn-primary" onclick="saveBudget()">💾 Save Budget</button>
+        <button class="btn btn-primary" onclick="saveBudget()">💾 Save</button>
         <button class="btn btn-secondary mt-8" onclick="closeModal('setBudgetModal')">✖ Cancel</button>
     </div>
 </div>
@@ -2675,7 +2642,7 @@
 <div class="modal-overlay" id="addBudgetItemModal">
     <div class="modal-content">
         <div class="modal-header">
-            <span class="modal-title" style="color:var(--green);">🛒 Add Item to Buy</span>
+            <span class="modal-title" style="color:var(--green);">🛒 Add Item</span>
             <button class="modal-close" onclick="closeModal('addBudgetItemModal')">✖</button>
         </div>
         <div class="form-group">
@@ -2697,7 +2664,7 @@
         <div class="form-group">
             <label>Category</label>
             <select id="budgetItemCategorySelect">
-                <option value="">Select a category...</option>
+                <option value="">Select...</option>
             </select>
         </div>
         <div class="form-group">
@@ -2719,7 +2686,7 @@
         <div class="form-group">
             <label>Category</label>
             <select id="expenseCategorySelect">
-                <option value="">Loading categories...</option>
+                <option value="">Loading...</option>
             </select>
         </div>
         <div class="form-group">
@@ -2739,7 +2706,7 @@
             <select id="expensePaymentMethodSelect">
                 <option value="CASH">Cash</option>
                 <option value="MPESA">M-Pesa</option>
-                <option value="BANK">Bank Transfer</option>
+                <option value="BANK">Bank</option>
                 <option value="CARD">Card</option>
             </select>
         </div>
@@ -2749,7 +2716,7 @@
                 <option value="">None</option>
             </select>
         </div>
-        <button class="btn btn-primary" onclick="saveExpense()">💾 Save Expense</button>
+        <button class="btn btn-primary" onclick="saveExpense()">💾 Save</button>
         <button class="btn btn-secondary mt-8" onclick="closeModal('addExpenseModal')">✖ Cancel</button>
     </div>
 </div>
@@ -2851,8 +2818,7 @@
     </div>
 </div>
 
-
-<!-- BOTTOM NAVIGATION - OPTION 1: Core Features -->
+<!-- BOTTOM NAVIGATION -->
 <div class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-item active" onclick="navigateTo('dashboard')">
         <span class="icon">🏠</span> Home
@@ -2863,8 +2829,8 @@
     <button class="nav-item" onclick="showExpenses()">
         <span class="icon">💰</span> Expenses
     </button>
-    <button class="nav-item" onclick="showFullSavings()">
-        <span class="icon">🏦</span> Savings
+    <button class="nav-item" onclick="showBudgetScreen()">
+        <span class="icon">📊</span> Budget
     </button>
     <button class="nav-item" onclick="showProfile()">
         <span class="icon">👤</span> Profile
@@ -2893,7 +2859,7 @@
     let expenseCategories = [];
     let selectedPaymentChamaId = null;
 
-    // New variables for expenses & budget
+    // Variables for expenses & budget
     let expenseChart = null;
     let budgetItemsData = [];
     let budgetCategories = [];
@@ -2984,7 +2950,6 @@
         const screen = document.getElementById(screenId + 'Screen');
         if (screen) screen.classList.add('active');
 
-        // Update nav items
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(item => {
             if (item.textContent.trim().toLowerCase().includes(screenId)) {
@@ -3276,7 +3241,6 @@
         document.getElementById('budgetMonthFull').textContent = new Date().toLocaleDateString('en-KE', { month: 'long',
             year: 'numeric' });
 
-        // Load budget categories
         loadCategories();
 
         const token = localStorage.getItem('token');
@@ -4384,139 +4348,100 @@
         });
     }
 
-async function loadMembersForPaymentSelect(chamaId) {
-    const select = document.getElementById('paymentMemberSelect');
-    select.innerHTML = '<option value="">Loading...</option>';
+    async function loadMembersForPaymentSelect(chamaId) {
+        const select = document.getElementById('paymentMemberSelect');
+        select.innerHTML = '<option value="">Loading...</option>';
 
-    try {
-        const response = await fetch(`${API_URL}/chama/members?id=${chamaId}`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-
-        // Log the full response for debugging
-        console.log('📡 Members response status:', response.status);
-
-        const data = await response.json();
-        console.log('📦 Full members response:', data); // Debug log
-
-        select.innerHTML = '<option value="">Select a member...</option>';
-
-        if (data.success && data.members) {
-            data.members.forEach(member => {
-                const option = document.createElement('option');
-
-                // Log each member to see the structure
-                console.log('👤 Member data:', member);
-
-                // Try different possible ID fields
-                const userId = member.user_id || member.id || member.userId;
-
-                option.value = JSON.stringify({
-                    id: userId,
-                    name: member.name || member.fullname || member.username,
-                    type: member.type || 'REGISTERED'
-                });
-                option.textContent = (member.name || member.fullname || member.username) +
-                    (member.role === 'LEADER' ? ' (Leader)' : '');
-                select.appendChild(option);
+        try {
+            const response = await fetch(`${API_URL}/chama/members?id=${chamaId}`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
             });
-        } else {
-            console.warn('⚠️ No members found or API error:', data);
+
+            const data = await response.json();
+            select.innerHTML = '<option value="">Select a member...</option>';
+
+            if (data.success && data.members) {
+                data.members.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({
+                        id: member.id,
+                        name: member.name,
+                        type: member.type || 'REGISTERED'
+                    });
+                    option.textContent = member.name + (member.role === 'LEADER' ? ' (Leader)' : '');
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading members:', error);
+            select.innerHTML = '<option value="">Error loading members</option>';
         }
-    } catch (error) {
-        console.error('Error loading members:', error);
-        select.innerHTML = '<option value="">Error loading members</option>';
-        showToast('❌ Failed to load members');
-    }
-}
-async function recordPaymentChama(chamaId) {
-    const select = document.getElementById('paymentMemberSelect');
-    const amountInput = document.getElementById('paymentAmountChama');
-    const methodSelect = document.getElementById('paymentMethodChama');
-
-    const selectedValue = select.value;
-    const amount = amountInput.value.trim();
-    const method = methodSelect.value;
-
-    if (!selectedValue) {
-        alert('❌ Please select a member');
-        return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
-        alert('❌ Please enter a valid amount');
-        amountInput.focus();
-        return;
-    }
+    async function recordPaymentChama(chamaId) {
+        const select = document.getElementById('paymentMemberSelect');
+        const amountInput = document.getElementById('paymentAmountChama');
+        const methodSelect = document.getElementById('paymentMethodChama');
 
-    try {
-        // Parse the selected value correctly
-        const memberData = JSON.parse(selectedValue);
-        const userId = memberData.id;  // This is the user_id
-        const memberName = memberData.name;
+        const selectedValue = select.value;
+        const amount = amountInput.value.trim();
+        const method = methodSelect.value;
 
-        if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
+        if (!selectedValue) {
+            alert('❌ Please select a member');
             return;
         }
 
-        showLoading(true);
+        if (!amount || parseFloat(amount) <= 0) {
+            alert('❌ Please enter a valid amount');
+            amountInput.focus();
+            return;
+        }
 
-        // Correct request body structure
-        const requestBody = {
-            chama_id: chamaId,
-            user_id: userId,  // Changed from memberId to userId
-            amount: parseFloat(amount),
-            payment_method: method
-        };
-
-        console.log('📤 Sending payment request:', requestBody);
-
-        const response = await fetch(`${API_URL}/chama/contribute`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        // Log response status
-        console.log('📡 Payment response status:', response.status);
-
-        // Get raw response text first
-        const responseText = await response.text();
-        console.log('📥 Raw payment response:', responseText);
-
-        let data;
         try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ Failed to parse response:', responseText);
-            throw new Error('Server returned invalid response');
-        }
+            const memberData = JSON.parse(selectedValue);
+            const memberId = memberData.id;
+            const memberName = memberData.name;
 
-        showLoading(false);
+            if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
+                return;
+            }
 
-        if (response.ok && data.success) {
-            alert(
-                `✅ Payment recorded!\n\nMember: ${data.member_name}\nAmount: Ksh ${formatNumber(data.amount)}\nMethod: ${data.payment_method}`
-            );
-            // Close the overlay
-            const overlay = document.querySelector('div[style*="fixed"]');
-            if (overlay) overlay.remove();
-            // Refresh chama details
-            viewChama(chamaId);
-        } else {
-            alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
+            showLoading(true);
+
+            const response = await fetch(`${API_URL}/chama/contribute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify({
+                    chama_id: chamaId,
+                    user_id: memberId,
+                    amount: parseFloat(amount),
+                    payment_method: method
+                })
+            });
+
+            const data = await response.json();
+            showLoading(false);
+
+            if (data.success) {
+                alert(
+                    `✅ Payment recorded!\n\nMember: ${data.member_name}\nAmount: Ksh ${formatNumber(data.amount)}\nMethod: ${data.payment_method}`
+                    );
+                const overlay = document.querySelector('div[style*="fixed"]');
+                if (overlay) overlay.remove();
+                viewChama(chamaId);
+            } else {
+                alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            showLoading(false);
+            alert(`❌ Network error: ${error.message}`);
+            console.error('Record payment error:', error);
         }
-    } catch (error) {
-        showLoading(false);
-        alert(`❌ Network error: ${error.message}`);
-        console.error('Record payment error:', error);
     }
-}
 
     // ============================================================
     // PAYMENT DETAILS EDITOR (Chama)
@@ -6540,7 +6465,7 @@ async function recordPaymentChama(chamaId) {
     }
 
     // ============================================================
-    // EXPENSE & BUDGET - NEW FEATURES
+    // EXPENSE & BUDGET - SIMPLIFIED
     // ============================================================
 
     // Show Expenses Screen
@@ -6560,41 +6485,40 @@ async function recordPaymentChama(chamaId) {
         loadCategories();
     }
 
- async function loadCategories() {
-    try {
-        const token = localStorage.getItem('token');
-        console.log('🔑 Token being sent:', token ? token.substring(0, 20) + '...' : 'No token');
+    // Load Categories
+    async function loadCategories() {
+        try {
+            const token = localStorage.getItem('token');
+            console.log('🔑 Token being sent:', token ? token.substring(0, 20) + '...' : 'No token');
 
-        const response = await fetch(`${API_URL}/expenses/categories`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+            const response = await fetch(`${API_URL}/expenses/categories`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📡 Categories response status:', response.status);
+
+            if (response.status === 401) {
+                console.log('❌ Unauthorized - Please login again');
+                showToast('⚠️ Session expired. Please login again.');
+                setTimeout(() => handleLogout(), 2000);
+                return;
             }
-        });
 
-        console.log('📡 Categories response status:', response.status);
+            const data = await response.json();
+            console.log('📦 Categories data:', data);
 
-        if (response.status === 401) {
-            console.log('❌ Unauthorized - Please login again');
-            // Show toast message to user
-            showToast('⚠️ Session expired. Please login again.');
-            // Optionally redirect to login
-            setTimeout(() => handleLogout(), 2000);
-            return;
+            if (data.success) {
+                allCategories = data.categories || [];
+                populateCategorySelects(allCategories);
+            }
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            showToast('❌ Failed to load categories: ' + error.message);
         }
-
-        const data = await response.json();
-        console.log('📦 Categories data:', data);
-
-        if (data.success) {
-            allCategories = data.categories || [];
-            populateCategorySelects(allCategories);
-        }
-    } catch (error) {
-        console.error('Error loading categories:', error);
-        showToast('❌ Failed to load categories: ' + error.message);
     }
-}
 
     function populateCategorySelects(categories) {
         // Budget category select
@@ -6653,7 +6577,7 @@ async function recordPaymentChama(chamaId) {
         if (!budgets || budgets.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
-                    No budgets set. Click "Set Budget" to start planning!
+                    No budgets set. Click "Set Budget" to start!
                 </div>
             `;
             return;
@@ -6694,7 +6618,7 @@ async function recordPaymentChama(chamaId) {
         if (!budgets || budgets.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:13px;">
-                    No budgets set. Click "Set Budget" to start planning!
+                    No budgets set. Click "Set Budget" to start!
                 </div>
             `;
             return;
@@ -6807,7 +6731,6 @@ async function recordPaymentChama(chamaId) {
     // Load Budget Items
     async function loadBudgetItems() {
         try {
-            // First get the first budget id
             const budgetResponse = await fetch(`${API_URL}/budgets`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             });
@@ -6816,12 +6739,12 @@ async function recordPaymentChama(chamaId) {
             if (!budgetData.success || !budgetData.budgets || budgetData.budgets.length === 0) {
                 document.getElementById('budgetItemsList').innerHTML = `
                     <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
-                        Set a budget first to add items you want to buy!
+                        Set a budget first to add items!
                     </div>
                 `;
                 document.getElementById('budgetItemsFullList').innerHTML = `
                     <div style="text-align:center; padding:12px; color:var(--text-secondary); font-size:13px;">
-                        Set a budget first to add items you want to buy!
+                        Set a budget first to add items!
                     </div>
                 `;
                 return;
@@ -6838,8 +6761,6 @@ async function recordPaymentChama(chamaId) {
                 budgetItemsData = data.items || [];
                 renderBudgetItems(budgetItemsData);
                 renderBudgetItemsFull(budgetItemsData);
-
-                // Populate expense budget item select
                 populateExpenseBudgetItems(budgetItemsData);
             }
         } catch (error) {
@@ -6943,7 +6864,6 @@ async function recordPaymentChama(chamaId) {
         const select = document.getElementById('expenseBudgetItemSelect');
         select.innerHTML = '<option value="">None</option>';
 
-        // Only show pending items
         const pendingItems = items.filter(item => item.status === 'PENDING');
         pendingItems.forEach(item => {
             const opt = document.createElement('option');
@@ -6981,7 +6901,6 @@ async function recordPaymentChama(chamaId) {
             return;
         }
 
-        // Get the first budget
         let budgetId = null;
         try {
             const response = await fetch(`${API_URL}/budgets`, {
@@ -7024,7 +6943,7 @@ async function recordPaymentChama(chamaId) {
             showLoading(false);
 
             if (data.success) {
-                showToast('✅ Budget item added successfully!');
+                showToast('✅ Item added successfully!');
                 closeModal('addBudgetItemModal');
                 loadBudgetItems();
                 loadExpenses();
@@ -7293,7 +7212,6 @@ async function recordPaymentChama(chamaId) {
     function updateExpenseChart(expenses) {
         const ctx = document.getElementById('expenseChart').getContext('2d');
 
-        // Aggregate expenses by category
         const categoryMap = new Map();
         expenses.forEach(exp => {
             const key = exp.category_name || 'Uncategorized';
@@ -7311,14 +7229,12 @@ async function recordPaymentChama(chamaId) {
         const data = Array.from(categoryMap.values()).map(v => v.total);
         const colors = Array.from(categoryMap.values()).map(v => v.color);
 
-        // Destroy existing chart if it exists
         if (expenseChart) {
             expenseChart.destroy();
             expenseChart = null;
         }
 
         if (labels.length === 0) {
-            // Show empty state
             document.getElementById('expenseChart').style.display = 'none';
             return;
         }
@@ -7384,7 +7300,7 @@ async function recordPaymentChama(chamaId) {
     });
 
     console.log('✅ Supreme Money Coach App Loaded Successfully!');
-    console.log('📊 Expense Tracker with Budget Planning');
+    console.log('📊 Simple Expense Tracker with Budget Planning');
     console.log('🔗 API URL:', API_URL);
 </script>
 </body>
