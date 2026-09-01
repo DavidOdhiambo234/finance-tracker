@@ -6612,50 +6612,53 @@
         container.innerHTML = html;
     }
 
-    function renderBudgetCategories(budgets) {
-        const container = document.getElementById('budgetCategoriesList');
+function renderBudgetCategories(budgets) {
+    const container = document.getElementById('budgetCategoriesList');
 
-        if (!budgets || budgets.length === 0) {
-            container.innerHTML = `
-                <div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:13px;">
-                    No budgets set. Click "Set Budget" to start!
-                </div>
-            `;
-            return;
-        }
-
-        let html = '';
-        budgets.forEach(budget => {
-            const percentage = Math.min(budget.percentage || 0, 100);
-            const barColor = percentage >= 100 ? 'var(--red)' : percentage >= 80 ? 'var(--amber)' : 'var(--green)';
-
-            html += `
-                <div style="background:var(--bg-card); border-radius:10px; padding:12px; margin-bottom:8px; border-left: 4px solid ${barColor};">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="font-size:14px; font-weight:500;">${budget.icon || '📌'} ${budget.category_name}</span>
-                            <div style="font-size:11px; color:var(--text-secondary);">
-                                Spent: Ksh ${formatNumber(budget.spent)} of Ksh ${formatNumber(budget.budgeted)}
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:14px; font-weight:600; color:${barColor};">
-                                ${percentage.toFixed(0)}%
-                            </div>
-                            <div style="font-size:11px; color:var(--text-secondary);">
-                                Remaining: Ksh ${formatNumber(budget.remaining)}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="progress-track" style="margin-top:6px;">
-                        <div class="progress-fill" style="width:${percentage}%; background:${barColor};"></div>
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
+    if (!budgets || budgets.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:16px; color:var(--text-secondary); font-size:13px;">
+                No budgets set. Click "Set Budget" to start!
+            </div>
+        `;
+        return;
     }
+
+    let html = '';
+    budgets.forEach(budget => {
+        const percentage = Math.min(budget.percentage || 0, 100);
+        const barColor = percentage >= 100 ? 'var(--red)' : percentage >= 80 ? 'var(--amber)' : 'var(--green)';
+
+        html += `
+            <div style="background:var(--bg-card); border-radius:10px; padding:12px; margin-bottom:8px; border-left: 4px solid ${barColor};">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:14px; font-weight:500;">${budget.icon || '📌'} ${budget.category_name}</span>
+                        <div style="font-size:11px; color:var(--text-secondary);">
+                            Spent: Ksh ${formatNumber(budget.spent)} of Ksh ${formatNumber(budget.budgeted)}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px; font-weight:600; color:${barColor};">
+                            ${percentage.toFixed(0)}%
+                        </div>
+                        <div style="font-size:11px; color:var(--text-secondary);">
+                            Remaining: Ksh ${formatNumber(budget.remaining)}
+                        </div>
+                        <button onclick="deleteBudget(${budget.id})" style="background:var(--red); color:white; border:none; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer; margin-top:4px;">
+                            🗑 Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-track" style="margin-top:6px;">
+                    <div class="progress-fill" style="width:${percentage}%; background:${barColor};"></div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
 
     function updateBudgetSummary(data) {
         if (!data) return;
@@ -7140,6 +7143,38 @@
         document.getElementById('expensePaymentMethodSelect').value = 'CASH';
         openModal('addExpenseModal');
     }
+    // Add this function to delete a budget
+async function deleteBudget(budgetId) {
+    if (!confirm('Delete this budget?')) return;
+
+    showLoading(true);
+
+    try {
+        const response = await fetch(`${API_URL}/budgets/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({ budget_id: budgetId })
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+            showToast('✅ Budget deleted');
+            loadBudgets();
+            loadExpenses();
+        } else {
+            showToast('❌ Failed to delete budget: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        showLoading(false);
+        showToast('❌ Network error: ' + error.message);
+        console.error('Delete budget error:', error);
+    }
+}
 
     // Save Expense
     async function saveExpense() {
@@ -7209,68 +7244,87 @@
     }
 
     // Update Expense Chart
-    function updateExpenseChart(expenses) {
-        const ctx = document.getElementById('expenseChart').getContext('2d');
+   // Update Expense Chart - Only show categories with actual spending
+function updateExpenseChart(expenses) {
+    const ctx = document.getElementById('expenseChart').getContext('2d');
 
-        const categoryMap = new Map();
-        expenses.forEach(exp => {
-            const key = exp.category_name || 'Uncategorized';
-            const icon = exp.icon || '📌';
-            const color = exp.color || '#2a3a55';
-            if (categoryMap.has(key)) {
-                const existing = categoryMap.get(key);
-                existing.total += exp.amount;
-            } else {
-                categoryMap.set(key, { total: exp.amount, icon, color });
-            }
-        });
+    // Aggregate expenses by category - ONLY include expenses with amount > 0
+    const categoryMap = new Map();
+    expenses.forEach(exp => {
+        if (exp.amount <= 0) return; // Skip zero or negative amounts
 
-        const labels = Array.from(categoryMap.keys());
-        const data = Array.from(categoryMap.values()).map(v => v.total);
-        const colors = Array.from(categoryMap.values()).map(v => v.color);
-
-        if (expenseChart) {
-            expenseChart.destroy();
-            expenseChart = null;
+        const key = exp.category_name || 'Uncategorized';
+        const icon = exp.icon || '📌';
+        const color = exp.color || '#2a3a55';
+        if (categoryMap.has(key)) {
+            const existing = categoryMap.get(key);
+            existing.total += exp.amount;
+        } else {
+            categoryMap.set(key, { total: exp.amount, icon, color });
         }
+    });
 
-        if (labels.length === 0) {
-            document.getElementById('expenseChart').style.display = 'none';
-            return;
-        }
+    const labels = Array.from(categoryMap.keys());
+    const data = Array.from(categoryMap.values()).map(v => v.total);
+    const colors = Array.from(categoryMap.values()).map(v => v.color);
 
-        document.getElementById('expenseChart').style.display = 'block';
-
-        expenseChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: colors,
-                    borderColor: '#0a1628',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#e0e8f0',
-                            font: { size: 10 },
-                            padding: 8,
-                            boxWidth: 12,
-                            boxHeight: 12
-                        }
-                    }
-                },
-                cutout: '65%'
-            }
-        });
+    if (expenseChart) {
+        expenseChart.destroy();
+        expenseChart = null;
     }
+
+    if (labels.length === 0) {
+        document.getElementById('expenseChart').style.display = 'none';
+        // Show a message instead
+        const container = document.getElementById('expenseChart').parentElement;
+        const existingMsg = container.querySelector('.no-chart-data');
+        if (!existingMsg) {
+            const msg = document.createElement('div');
+            msg.className = 'no-chart-data';
+            msg.style.cssText = 'text-align:center; padding:20px; color:var(--text-secondary); font-size:14px;';
+            msg.textContent = '📊 No expenses yet. Start tracking to see your spending chart!';
+            container.appendChild(msg);
+        }
+        return;
+    }
+
+    // Remove any "no data" message
+    const container = document.getElementById('expenseChart').parentElement;
+    const existingMsg = container.querySelector('.no-chart-data');
+    if (existingMsg) existingMsg.remove();
+
+    document.getElementById('expenseChart').style.display = 'block';
+
+    expenseChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderColor: '#0a1628',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#e0e8f0',
+                        font: { size: 10 },
+                        padding: 8,
+                        boxWidth: 12,
+                        boxHeight: 12
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+}
 
     // ============================================================
     // INITIALIZE APP

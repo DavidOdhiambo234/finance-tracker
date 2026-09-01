@@ -4210,7 +4210,7 @@ public class MobileApiServer {
         }
     }
     // ============================================================
-// EXPENSE CATEGORIES HANDLER
+// EXPENSE CATEGORIES HANDLER - FIXED FOR UNIQUE CATEGORIES
 // ============================================================
     static class ExpenseCategoriesHandler implements HttpHandler {
         @Override
@@ -4233,8 +4233,9 @@ public class MobileApiServer {
                 }
 
                 try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Use DISTINCT to avoid duplicates
                     PreparedStatement pst = conn.prepareStatement(
-                            "SELECT id, category_name as name, icon, color, is_system FROM expense_categories " +
+                            "SELECT DISTINCT id, category_name as name, icon, color, is_system FROM expense_categories " +
                                     "WHERE is_system = TRUE OR user_id = ? ORDER BY category_name"
                     );
                     pst.setInt(1, userId);
@@ -4327,7 +4328,7 @@ public class MobileApiServer {
         }
     }
     // ============================================================
-// GET BUDGETS HANDLER
+// GET BUDGETS HANDLER - FIXED FOR UNIQUE CATEGORIES PER MONTH
 // ============================================================
     static class GetBudgetsHandler implements HttpHandler {
         @Override
@@ -4353,12 +4354,14 @@ public class MobileApiServer {
                 String monthYear = params.getOrDefault("month", java.time.LocalDate.now().withDayOfMonth(1).toString());
 
                 try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Get only current month budgets - GROUP BY to avoid duplicates
                     PreparedStatement pst = conn.prepareStatement(
                             "SELECT b.id, b.category_id, b.amount as budgeted, b.spent, " +
                                     "c.category_name, c.icon, c.color, " +
                                     "(b.spent / b.amount * 100) as percentage " +
                                     "FROM budgets b JOIN expense_categories c ON b.category_id = c.id " +
                                     "WHERE b.user_id = ? AND b.month_year = ? " +
+                                    "GROUP BY b.category_id " +  // Group by category to avoid duplicates
                                     "ORDER BY c.category_name"
                     );
                     pst.setInt(1, userId);
@@ -4381,7 +4384,6 @@ public class MobileApiServer {
                         budget.put("remaining", rs.getDouble("budgeted") - rs.getDouble("spent"));
                         budget.put("percentage", rs.getDouble("percentage"));
 
-                        // Determine status
                         double pct = rs.getDouble("percentage");
                         if (pct >= 100) {
                             budget.put("status", "EXCEEDED");
@@ -4398,29 +4400,11 @@ public class MobileApiServer {
                     rs.close();
                     pst.close();
 
-                    // Get total expenses for the month (without budget)
-                    PreparedStatement totalPst = conn.prepareStatement(
-                            "SELECT COALESCE(SUM(amount), 0) as total_spent_all " +
-                                    "FROM expenses WHERE user_id = ? AND MONTH(expense_date) = ? AND YEAR(expense_date) = ?"
-                    );
-                    java.time.LocalDate date = java.time.LocalDate.parse(monthYear);
-                    totalPst.setInt(1, userId);
-                    totalPst.setInt(2, date.getMonthValue());
-                    totalPst.setInt(3, date.getYear());
-                    ResultSet totalRs = totalPst.executeQuery();
-                    double totalAllSpent = 0;
-                    if (totalRs.next()) {
-                        totalAllSpent = totalRs.getDouble("total_spent_all");
-                    }
-                    totalRs.close();
-                    totalPst.close();
-
                     JSONObject response = new JSONObject();
                     response.put("success", true);
                     response.put("budgets", budgets);
                     response.put("total_budget", totalBudget);
                     response.put("total_spent", totalSpent);
-                    response.put("total_spent_all", totalAllSpent);
                     response.put("remaining_total", totalBudget - totalSpent);
                     response.put("month", monthYear);
                     sendResponse(exchange, 200, response.toString());
