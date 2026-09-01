@@ -3320,22 +3320,39 @@
     document.getElementById('bottomNav').style.display = 'none';
      }
 
-  function handleLogout() {
+ function handleLogout() {
+    // Check if already logging out
     if (sessionStorage.getItem('_logoutInProgress') === 'true') {
+        console.log('⏳ Logout already in progress');
         return;
     }
 
     if (confirm('Are you sure you want to logout?')) {
+        console.log('🚪 Logging out...');
+
+        // Set flag immediately to prevent loops
         sessionStorage.setItem('_logoutInProgress', 'true');
+
+        // Clear everything
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         localStorage.clear();
         currentToken = null;
         currentUser = null;
+
+        // Reset UI - Show login first
         document.getElementById('appHeader').style.display = 'none';
         document.getElementById('bottomNav').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('loginPassword').value = '';
         closeSidebar();
-        window.location.reload();
+
+        // Remove the flag after a moment, then reload
+        setTimeout(function() {
+            sessionStorage.removeItem('_logoutInProgress');
+            window.location.reload();
+        }, 100);
     }
 }
 
@@ -7343,28 +7360,124 @@ function updateExpenseChart(expenses) {
     // INITIALIZE APP
     // ============================================================
     document.addEventListener('DOMContentLoaded', function() {
-        const token = localStorage.getItem('token');
-        const user = localStorage.getItem('user');
+    // ============================================================
+    // CHECK FOR LOGOUT STATE - FIXED
+    // ============================================================
+    // Only clear the flag if it exists, don't prevent login
+    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
+        sessionStorage.removeItem('_logoutInProgress');
+        console.log('🔄 Logout state cleared, showing login');
+        // Show login screen
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('appHeader').style.display = 'none';
+        document.getElementById('bottomNav').style.display = 'none';
+        return; // Don't auto-login
+    }
 
-        if (token && user) {
-            try {
-                currentToken = token;
-                currentUser = JSON.parse(user);
-                showApp();
-                loadDashboard();
-                loadSavings();
-                loadDebts();
-                loadExpenses();
-                loadBudgets();
-                loadBudgetItems();
-                loadCategories();
-            } catch (e) {
-                console.error('Error restoring session:', e);
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-            }
+    // ============================================================
+    // NORMAL LOGIN CHECK
+    // ============================================================
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+
+    // Only auto-login if NOT in logout state
+    if (token && user) {
+        try {
+            currentToken = token;
+            currentUser = JSON.parse(user);
+            showApp();
+            loadDashboard();
+            loadSavings();
+            loadDebts();
+            loadExpenses();
+            loadBudgets();
+            loadBudgetItems();
+            loadCategories();
+        } catch (e) {
+            console.error('Error restoring session:', e);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            // Show login screen
+            document.getElementById('loginScreen').style.display = 'block';
+            document.getElementById('registerScreen').style.display = 'none';
+            document.getElementById('appHeader').style.display = 'none';
+            document.getElementById('bottomNav').style.display = 'none';
+        }
+    } else {
+        // Show login screen
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('appHeader').style.display = 'none';
+        document.getElementById('bottomNav').style.display = 'none';
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') handleLogin();
+    });
+    document.getElementById('loginUsername').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+    });
+    document.getElementById('regPassword').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') handleRegister();
+    });
+    document.getElementById('chatInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+
+    document.getElementById('addMembersChamaSelect').addEventListener('change', function() {
+        if (this.value) {
+            selectedChamaId = parseInt(this.value);
+        } else {
+            selectedChamaId = null;
         }
     });
+
+    document.getElementById('pendingChamaSelect').addEventListener('change', function() {
+        if (this.value) {
+            selectedPendingChamaId = parseInt(this.value);
+            loadPendingRequests(selectedPendingChamaId);
+        } else {
+            selectedPendingChamaId = null;
+            document.getElementById('pendingRequestsList').innerHTML = `
+                <div style="text-align:center; padding:20px; color:var(--text-secondary);">
+                    Select a Chama to view pending requests
+                </div>
+            `;
+        }
+    });
+
+    const modal = document.getElementById('changePasswordModal');
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeChangePassword();
+        }
+    });
+
+    // Setup date inputs
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.substring(0, 7);
+    document.getElementById('expenseDateInput').value = today;
+    document.getElementById('budgetMonthSelect').value = currentMonth;
+    document.getElementById('budgetMonth').textContent = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    document.getElementById('budgetMonthFull').textContent = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+
+    loadCategories();
+
+    // ============================================================
+    // FINAL CHECK - If nothing loaded, show login
+    // ============================================================
+    // This ensures login screen is shown if all else fails
+    if (!currentToken && !document.getElementById('loginScreen').style.display === 'block') {
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('appHeader').style.display = 'none';
+        document.getElementById('bottomNav').style.display = 'none';
+    }
+});
 
     console.log('✅ Supreme Money Coach App Loaded Successfully!');
     console.log('📊 Simple Expense Tracker with Budget Planning');
