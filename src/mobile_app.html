@@ -3080,53 +3080,58 @@
         document.getElementById('registerScreen').style.display = 'block';
     }
 
-    async function handleLogin() {
-        const username = document.getElementById('loginUsername').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
-        const errorEl = document.getElementById('loginError');
+async function handleLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorEl = document.getElementById('loginError');
 
-        if (!username || !password) {
-            errorEl.textContent = 'Please enter username and password';
-            errorEl.classList.add('show');
-            return;
-        }
-
-        errorEl.classList.remove('show');
-        showLoading(true);
-
-        try {
-            const response = await fetch(`${API_URL}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                localStorage.clear();
-                currentUser = data;
-                currentToken = data.token;
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data));
-                localStorage.setItem('user_id', data.user_id);
-                showLoading(false);
-                initializeApp();
-                loadSavings();
-                loadDebts();
-            } else {
-                showLoading(false);
-                errorEl.textContent = data.error || 'Login failed';
-                errorEl.classList.add('show');
-            }
-        } catch (error) {
-            showLoading(false);
-            errorEl.textContent = 'Network error. Please try again.';
-            errorEl.classList.add('show');
-            console.error('Login error:', error);
-        }
+    if (!username || !password) {
+        errorEl.textContent = 'Please enter username and password';
+        errorEl.classList.add('show');
+        return;
     }
 
+    errorEl.classList.remove('show');
+    showLoading(true);
+
+    try {
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            localStorage.clear();
+            currentUser = data;
+            currentToken = data.token;
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data));
+            localStorage.setItem('user_id', data.user_id);
+            showLoading(false);
+            showApp();
+            // Load all data after successful login
+            loadDashboard();
+            loadSavings();
+            loadDebts();
+            loadExpenses();
+            loadBudgets();
+            loadBudgetItems();
+            loadCategories();
+        } else {
+            showLoading(false);
+            errorEl.textContent = data.error || 'Login failed';
+            errorEl.classList.add('show');
+        }
+    } catch (error) {
+        showLoading(false);
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.classList.add('show');
+        console.error('Login error:', error);
+    }
+}
     async function handleRegister() {
         const fullname = document.getElementById('regFullname').value.trim();
         const username = document.getElementById('regUsername').value.trim();
@@ -6534,39 +6539,53 @@ function handleLogout() {
     }
 
     // Load Categories
-    async function loadCategories() {
-        try {
-            const token = localStorage.getItem('token');
-            console.log('🔑 Token being sent:', token ? token.substring(0, 20) + '...' : 'No token');
-
-            const response = await fetch(`${API_URL}/expenses/categories`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            console.log('📡 Categories response status:', response.status);
-
-            if (response.status === 401) {
-                console.log('❌ Unauthorized - Please login again');
-                showToast('⚠️ Session expired. Please login again.');
-                setTimeout(() => handleLogout(), 2000);
-                return;
-            }
-
-            const data = await response.json();
-            console.log('📦 Categories data:', data);
-
-            if (data.success) {
-                allCategories = data.categories || [];
-                populateCategorySelects(allCategories);
-            }
-        } catch (error) {
-            console.error('Error loading categories:', error);
-            showToast('❌ Failed to load categories: ' + error.message);
-        }
+  async function loadCategories() {
+    // Don't try to load categories if not logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.log('⏳ No token found, skipping categories load');
+        return;
     }
+
+    try {
+        console.log('🔑 Token being sent:', token ? token.substring(0, 20) + '...' : 'No token');
+
+        const response = await fetch(`${API_URL}/expenses/categories`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('📡 Categories response status:', response.status);
+if (response.status === 401) {
+    console.log('❌ Unauthorized - Session expired');
+    showToast('⚠️ Session expired. Please login again.');
+    // Clear everything
+    localStorage.clear();
+    sessionStorage.clear();
+    currentToken = null;
+    currentUser = null;
+    // Show login screen directly - DON'T call handleLogout
+    document.getElementById('appHeader').style.display = 'none';
+    document.getElementById('bottomNav').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('registerScreen').style.display = 'none';
+    return; // Stop execution
+}
+
+        const data = await response.json();
+        console.log('📦 Categories data:', data);
+
+        if (data.success) {
+            allCategories = data.categories || [];
+            populateCategorySelects(allCategories);
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        showToast('❌ Failed to load categories: ' + error.message);
+    }
+}
 
     function populateCategorySelects(categories) {
         // Budget category select
