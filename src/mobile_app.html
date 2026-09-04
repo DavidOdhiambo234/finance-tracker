@@ -802,6 +802,34 @@
             display: inline-block;
             margin-top: 6px;
         }
+        .app-header .header-right .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s;
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+}
+
+.app-header .header-right .avatar:hover {
+    transform: scale(1.05);
+}
+
+.app-header .header-right .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
 
         .notification-item .notif-type.SUCCESS {
             background: rgba(0, 168, 107, 0.2);
@@ -1709,7 +1737,7 @@
                 🔔
                 <span class="notif-badge" id="headerNotifBadge">0</span>
             </span>
-        <div class="avatar" id="headerAvatar">U</div>
+        <div class="avatar" id="headerAvatar" onclick="showProfile()" style="cursor:pointer;">U</div>
     </div>
 </header>
 
@@ -3299,31 +3327,59 @@ async function handleLogin() {
             loadCategories();
         }
     }
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('registerScreen').style.display = 'none';
+    document.getElementById('appHeader').style.display = 'flex';
+    document.getElementById('bottomNav').style.display = 'flex';
 
-    function showApp() {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('registerScreen').style.display = 'none';
-        document.getElementById('appHeader').style.display = 'flex';
-        document.getElementById('bottomNav').style.display = 'flex';
+    if (currentUser) {
+        const username = currentUser.username || currentUser.fullname;
+        document.getElementById('headerUsername').textContent = username;
+        document.getElementById('sidebarUserName').textContent = currentUser.fullname || currentUser.username;
 
-        if (currentUser) {
-            document.getElementById('headerUsername').textContent = currentUser.username || currentUser.fullname;
-            document.getElementById('headerAvatar').textContent = (currentUser.fullname || currentUser.username).charAt(
-                0)
-                .toUpperCase();
-            document.getElementById('sidebarUserName').textContent = currentUser.fullname || currentUser.username;
+        // Set the avatar letter
+        const initial = username ? username.charAt(0).toUpperCase() : 'U';
+        document.getElementById('headerAvatar').textContent = initial;
+
+        // Load profile photo for avatar
+        loadProfilePhotoForAvatar();
+    }
+
+    showScreen('dashboard');
+}
+
+// New function to load profile photo in avatar
+async function loadProfilePhotoForAvatar() {
+    try {
+        const userId = currentUser ? currentUser.user_id : localStorage.getItem('user_id');
+        if (!userId) {
+            console.log('⚠️ No user ID found for photo');
+            return;
         }
 
-        showScreen('dashboard');
+        const response = await fetch(`${API_URL}/user/get-photo?user_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            if (blob && blob.size > 0) {
+                const url = URL.createObjectURL(blob);
+                const avatar = document.getElementById('headerAvatar');
+                avatar.style.backgroundImage = `url(${url})`;
+                avatar.style.backgroundSize = 'cover';
+                avatar.style.backgroundPosition = 'center';
+                avatar.textContent = ''; // Remove the letter
+                avatar.style.display = 'flex';
+                avatar.style.alignItems = 'center';
+                avatar.style.justifyContent = 'center';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading profile photo for avatar:', error);
     }
-    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
-    sessionStorage.removeItem('_logoutInProgress');
-    // Already showing login, don't auto-login
-    document.getElementById('loginScreen').style.display = 'block';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.getElementById('appHeader').style.display = 'none';
-    document.getElementById('bottomNav').style.display = 'none';
-     }
+}
 
 // ============================================================
 // LOGOUT SYSTEM - FIXES THE LOOP
@@ -5347,44 +5403,77 @@ function handleLogout() {
     // PROFILE PHOTO (Existing code preserved)
     // ============================================================
     async function loadProfilePhoto() {
-        try {
-            const userId = currentUser ? currentUser.user_id : localStorage.getItem('user_id');
-            if (!userId) {
-                console.log('⚠️ No user ID found');
-                return;
-            }
+    try {
+        const userId = currentUser ? currentUser.user_id : localStorage.getItem('user_id');
+        if (!userId) {
+            console.log('⚠️ No user ID found');
+            return;
+        }
 
-            const response = await fetch(`${API_URL}/user/get-photo?user_id=${userId}`, {
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            });
+        const response = await fetch(`${API_URL}/user/get-photo?user_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                if (blob && blob.size > 0) {
-                    const url = URL.createObjectURL(blob);
-                    const img = document.getElementById('profilePhotoImg');
-                    const text = document.getElementById('profileAvatarText');
+        if (response.ok) {
+            const blob = await response.blob();
+            if (blob && blob.size > 0) {
+                const url = URL.createObjectURL(blob);
+                const img = document.getElementById('profilePhotoImg');
+                const text = document.getElementById('profileAvatarText');
+                const avatar = document.getElementById('headerAvatar');
 
-                    img.src = url;
-                    img.onload = function() {
-                        img.style.display = 'block';
-                        text.style.display = 'none';
-                    };
-                    img.onerror = function() {
-                        showAvatarText();
-                    };
-                } else {
+                // Update profile photo
+                img.src = url;
+                img.onload = function() {
+                    img.style.display = 'block';
+                    text.style.display = 'none';
+                };
+                img.onerror = function() {
                     showAvatarText();
+                };
+
+                // Update header avatar
+                if (avatar) {
+                    avatar.style.backgroundImage = `url(${url})`;
+                    avatar.style.backgroundSize = 'cover';
+                    avatar.style.backgroundPosition = 'center';
+                    avatar.textContent = '';
                 }
             } else {
                 showAvatarText();
             }
-        } catch (error) {
-            console.error('Error loading profile photo:', error);
+        } else {
             showAvatarText();
+        }
+    } catch (error) {
+        console.error('Error loading profile photo:', error);
+        showAvatarText();
+    }
+}
+
+function showAvatarText() {
+    const img = document.getElementById('profilePhotoImg');
+    const text = document.getElementById('profileAvatarText');
+    const avatar = document.getElementById('headerAvatar');
+
+    if (img) img.style.display = 'none';
+    if (text) {
+        text.style.display = 'block';
+        if (profileData) {
+            const initial = profileData.fullname ? profileData.fullname.charAt(0).toUpperCase() :
+                profileData.username.charAt(0).toUpperCase();
+            text.textContent = initial;
         }
     }
 
+    // Reset header avatar to show letter
+    if (avatar) {
+        avatar.style.backgroundImage = 'none';
+        const username = currentUser ? (currentUser.fullname || currentUser.username) : 'User';
+        avatar.textContent = username.charAt(0).toUpperCase();
+        avatar.style.backgroundColor = 'var(--green)';
+    }
+}
     function showAvatarText() {
         const img = document.getElementById('profilePhotoImg');
         const text = document.getElementById('profileAvatarText');
@@ -5397,96 +5486,107 @@ function handleLogout() {
         }
     }
 
-    async function uploadPhoto(input) {
-        const file = input.files[0];
-        if (!file) return;
+  async function uploadPhoto(input) {
+    const file = input.files[0];
+    if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            alert('❌ Please select an image file');
-            input.value = '';
-            return;
-        }
-
-        if (file.size > 2 * 1024 * 1024) {
-            alert('❌ Image size must be less than 2MB');
-            input.value = '';
-            return;
-        }
-
-        showLoading(true);
-
-        try {
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const base64Data = e.target.result.split(',')[1];
-
-                try {
-                    const response = await fetch(`${API_URL}/user/upload-photo-base64`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${currentToken}`
-                        },
-                        body: JSON.stringify({
-                            image: base64Data,
-                            type: file.type.split('/')[1]
-                        })
-                    });
-
-                    const data = await response.json();
-                    showLoading(false);
-
-                    if (data.success) {
-                        alert('✅ Profile photo uploaded successfully!');
-                        loadProfilePhoto();
-                    } else {
-                        alert(`❌ Failed to upload photo: ${data.error || 'Unknown error'}`);
-                    }
-                } catch (error) {
-                    showLoading(false);
-                    alert(`❌ Network error: ${error.message}`);
-                    console.error('Upload photo error:', error);
-                }
-            };
-            reader.readAsDataURL(file);
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Error: ${error.message}`);
-            console.error('Upload photo error:', error);
-        }
-
+    if (!file.type.startsWith('image/')) {
+        alert('❌ Please select an image file');
         input.value = '';
+        return;
     }
 
-    async function removePhoto() {
-        if (!confirm('Remove your profile photo?')) return;
+    if (file.size > 2 * 1024 * 1024) {
+        alert('❌ Image size must be less than 2MB');
+        input.value = '';
+        return;
+    }
 
-        showLoading(true);
+    showLoading(true);
 
-        try {
-            const response = await fetch(`${API_URL}/user/remove-photo`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${currentToken}`
+    try {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const base64Data = e.target.result.split(',')[1];
+
+            try {
+                const response = await fetch(`${API_URL}/user/upload-photo-base64`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        image: base64Data,
+                        type: file.type.split('/')[1]
+                    })
+                });
+
+                const data = await response.json();
+                showLoading(false);
+
+                if (data.success) {
+                    alert('✅ Profile photo uploaded successfully!');
+                    loadProfilePhoto(); // This will update both profile and avatar
+                } else {
+                    alert(`❌ Failed to upload photo: ${data.error || 'Unknown error'}`);
                 }
-            });
-
-            const data = await response.json();
-            showLoading(false);
-
-            if (data.success) {
-                alert('✅ Profile photo removed');
-                document.getElementById('profilePhotoImg').style.display = 'none';
-                document.getElementById('profileAvatarText').style.display = 'block';
-            } else {
-                alert(`❌ Failed to remove photo: ${data.error || 'Unknown error'}`);
+            } catch (error) {
+                showLoading(false);
+                alert(`❌ Network error: ${error.message}`);
+                console.error('Upload photo error:', error);
             }
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Network error: ${error.message}`);
-            console.error('Remove photo error:', error);
-        }
+        };
+        reader.readAsDataURL(file);
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Error: ${error.message}`);
+        console.error('Upload photo error:', error);
     }
+
+    input.value = '';
+}
+
+async function removePhoto() {
+    if (!confirm('Remove your profile photo?')) return;
+
+    showLoading(true);
+
+    try {
+        const response = await fetch(`${API_URL}/user/remove-photo`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${currentToken}`
+            }
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+            alert('✅ Profile photo removed');
+            // Reset both profile and avatar
+            document.getElementById('profilePhotoImg').style.display = 'none';
+            document.getElementById('profileAvatarText').style.display = 'block';
+
+            // Reset header avatar
+            const avatar = document.getElementById('headerAvatar');
+            avatar.style.backgroundImage = 'none';
+            const username = currentUser ? (currentUser.fullname || currentUser.username) : 'User';
+            avatar.textContent = username.charAt(0).toUpperCase();
+            avatar.style.backgroundColor = 'var(--green)';
+
+            // Refresh profile display
+            loadProfile();
+        } else {
+            alert(`❌ Failed to remove photo: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Network error: ${error.message}`);
+        console.error('Remove photo error:', error);
+    }
+}
 
     // ============================================================
     // CHANGE PASSWORD (Existing code preserved)
