@@ -3320,38 +3320,57 @@
     document.getElementById('bottomNav').style.display = 'none';
      }
 
-let logoutInProgress = false;
+// ============================================================
+// LOGOUT SYSTEM - FIXES THE LOOP
+// ============================================================
+
+let logoutProcessing = false;
+
+function performLogout() {
+    if (logoutProcessing) return;
+    logoutProcessing = true;
+
+    console.log('🚪 Logging out...');
+
+    // Set flag
+    sessionStorage.setItem('_logoutInProgress', 'true');
+
+    // Clear storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.clear();
+    currentToken = null;
+    currentUser = null;
+
+    // Show login
+    document.getElementById('appHeader').style.display = 'none';
+    document.getElementById('bottomNav').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+    document.getElementById('registerScreen').style.display = 'none';
+    document.getElementById('loginPassword').value = '';
+    closeSidebar();
+
+    setTimeout(() => {
+        sessionStorage.removeItem('_logoutInProgress');
+        logoutProcessing = false;
+        window.location.reload();
+    }, 100);
+}
 
 function handleLogout() {
-    // Prevent multiple calls
-    if (logoutInProgress) {
-        console.log('⏳ Logout already in progress');
+    if (logoutProcessing) return;
+    if (sessionStorage.getItem('_logoutInProgress') === 'true') return;
+
+    // Check if forced logout
+    if (sessionStorage.getItem('_forcedLogout') === 'true') {
+        sessionStorage.removeItem('_forcedLogout');
+        performLogout();
         return;
     }
 
-    // Show confirmation once
+    // Manual logout with confirmation
     if (confirm('Are you sure you want to logout?')) {
-        logoutInProgress = true;
-
-        // Clear storage
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        currentToken = null;
-        currentUser = null;
-
-        // Reset UI
-        document.getElementById('appHeader').style.display = 'none';
-        document.getElementById('bottomNav').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'block';
-        document.getElementById('registerScreen').style.display = 'none';
-        document.getElementById('loginPassword').value = '';
-        closeSidebar();
-
-        // Reload page after a brief delay
-        setTimeout(function() {
-            logoutInProgress = false;
-            window.location.reload();
-        }, 200);
+        performLogout();
     }
 }
 
