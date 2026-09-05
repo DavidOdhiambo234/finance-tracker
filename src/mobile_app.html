@@ -1609,132 +1609,7 @@
             color: var(--red);
             text-align: right;
         }
-        /* ============================================================
-   LAPTOP SCREEN FIXES
-   ============================================================ */
 
-/* Fix for screens wider than 768px */
-@media (min-width: 769px) {
-    .screen {
-        padding: 20px 30px 80px 30px;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    /* Fix savings card layout */
-    .savings-card {
-        padding: 24px 28px;
-    }
-
-    .savings-card .balance-row .balance-amount {
-        font-size: 32px;
-    }
-
-    /* Fix chama cards grid */
-    #chamaCards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-
-    .chama-card {
-        padding: 18px 20px;
-    }
-
-    /* Fix budget items */
-    .budget-item-card {
-        padding: 14px 18px;
-    }
-
-    /* Fix expense items */
-    .expense-item {
-        padding: 14px 18px;
-    }
-
-    /* Fix modals */
-    .modal-content {
-        max-width: 500px;
-        padding: 28px 32px;
-    }
-
-    /* Fix bottom nav spacing */
-    .bottom-nav {
-        padding: 8px 0 12px 0;
-    }
-
-    .bottom-nav .nav-item {
-        font-size: 10px;
-        padding: 4px 12px;
-    }
-
-    .bottom-nav .nav-item .icon {
-        font-size: 22px;
-    }
-}
-
-/* Fix for very large screens */
-@media (min-width: 1200px) {
-    #chamaCards {
-        grid-template-columns: 1fr 1fr 1fr;
-    }
-
-    .screen {
-        max-width: 1400px;
-        padding: 24px 40px 80px 40px;
-    }
-
-    .savings-card .balance-row .balance-amount {
-        font-size: 36px;
-    }
-}
-
-/* Fix for small laptops */
-@media (max-width: 1024px) and (min-width: 769px) {
-    #chamaCards {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .screen {
-        padding: 16px 20px 80px 20px;
-    }
-}
-
-/* Ensure no horizontal scroll */
-body {
-    overflow-x: hidden;
-}
-
-/* Fix container widths */
-.screen {
-    overflow-x: hidden;
-    max-width: 100%;
-}
-
-/* Fix tables to not overflow */
-.debt-table-container {
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-.debt-table {
-    min-width: 600px;
-}
-
-/* Fix chart container */
-.chart-container canvas {
-    max-width: 100%;
-    max-height: 250px;
-}
-
-/* Fix budget progress bars */
-.budget-progress-item {
-    max-width: 100%;
-}
-
-.budget-progress-item .progress-header {
-    flex-wrap: wrap;
-    gap: 4px;
-}
 
         /* ============================================================
            RESPONSIVE
@@ -7687,20 +7562,21 @@ function updateExpenseChart(expenses) {
  // ============================================================
 // INITIALIZE APP
 // ============================================================
+// ============================================================
+// INITIALIZE APP
+// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
     // CHECK FOR LOGOUT STATE - FIXED
     // ============================================================
-    // Only clear the flag if it exists, don't prevent login
     if (sessionStorage.getItem('_logoutInProgress') === 'true') {
         sessionStorage.removeItem('_logoutInProgress');
         console.log('🔄 Logout state cleared, showing login');
-        // Show login screen
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('appHeader').style.display = 'none';
         document.getElementById('bottomNav').style.display = 'none';
-        return; // Don't auto-login
+        return;
     }
 
     // ============================================================
@@ -7709,7 +7585,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
 
-    // Only auto-login if NOT in logout state
     if (token && user) {
         try {
             currentToken = token;
@@ -7727,14 +7602,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error restoring session:', e);
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            // Show login screen
             document.getElementById('loginScreen').style.display = 'block';
             document.getElementById('registerScreen').style.display = 'none';
             document.getElementById('appHeader').style.display = 'none';
             document.getElementById('bottomNav').style.display = 'none';
         }
     } else {
-        // Show login screen
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('appHeader').style.display = 'none';
@@ -7811,9 +7684,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
 
     // ============================================================
-    // FINAL CHECK - If nothing loaded, show login
+    // FINAL CHECK
     // ============================================================
-    // This ensures login screen is shown if all else fails
     if (!currentToken && document.getElementById('loginScreen').style.display !== 'block') {
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none';
@@ -7824,7 +7696,10 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Supreme Money Coach App Loaded Successfully!');
     console.log('📊 Simple Expense Tracker with Budget Planning');
     console.log('🔗 API URL:', API_URL);
-}); // <-- Only ONE closing brace for DOMContentLoaded
+});
+// ============================================================
+// END OF JAVASCRIPT - NO EXTRA BRACES
+// ============================================================
 </script>
 </body>
 </html>
