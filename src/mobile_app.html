@@ -3449,10 +3449,33 @@ function handleLogout() {
         if (num === undefined || num === null) return '0';
         return Number(num).toLocaleString('en-KE');
     }
+function getTimeAgo(date) {
+    try {
+        // Handle different date formats
+        let dateObj;
+        if (typeof date === 'string') {
+            // Replace space with T for ISO format
+            const cleanDate = date.replace(' ', 'T');
+            dateObj = new Date(cleanDate);
+        } else if (date instanceof Date) {
+            dateObj = date;
+        } else {
+            return 'Just now';
+        }
 
-    function getTimeAgo(date) {
+        // Check if date is valid
+        if (isNaN(dateObj.getTime())) {
+            return 'Just now';
+        }
+
         const now = new Date();
-        const diffMs = now - date;
+        const diffMs = now.getTime() - dateObj.getTime();
+
+        // If the date is in the future, return 'Just now'
+        if (diffMs < 0) {
+            return 'Just now';
+        }
+
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
@@ -3460,8 +3483,13 @@ function handleLogout() {
         if (diffMins < 1) return 'Just now';
         if (diffMins < 60) return diffMins + 'm ago';
         if (diffHours < 24) return diffHours + 'h ago';
-        return diffDays + 'd ago';
+        if (diffDays < 7) return diffDays + 'd ago';
+        return dateObj.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+        console.error('Error in getTimeAgo:', e);
+        return 'Just now';
     }
+}
 
     function showToast(message) {
         const existing = document.querySelector('.toast-message');
@@ -6076,34 +6104,72 @@ async function markAllRead() {
         });
     }
 
-    function downloadReport(chamaName) {
-        const overlay = document.querySelector('div[data-report]');
-        if (!overlay) return;
+  function downloadReport(chamaName) {
+    const overlay = document.querySelector('div[data-report]');
+    if (!overlay) {
+        showToast('❌ No report data found');
+        return;
+    }
 
-        const reportText = overlay.dataset.report;
-        const name = overlay.dataset.chamaName || 'Chama_Report';
+    const reportText = overlay.dataset.report;
+    const name = overlay.dataset.chamaName || 'Chama_Report';
+    const fileName = `${name}_Report_${new Date().toISOString().slice(0,10)}.txt`;
 
+    // ✅ SIMPLE FIX: Use fetch to trigger download
+    try {
         const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+
+        // Use the File API if available
+        if (window.showSaveFilePicker) {
+            // Modern browsers with File System API
+            const file = new File([blob], fileName, { type: 'text/plain' });
+            window.showSaveFilePicker({ suggestedName: fileName })
+                .then(handle => handle.createWritable()
+                    .then(writable => writable.write(file))
+                    .then(writable => writable.close()))
+                .then(() => showToast('✅ Report saved!'))
+                .catch(() => showToast('❌ Save cancelled'));
+            return;
+        }
+
+        // Fallback for mobile browsers
         const url = URL.createObjectURL(blob);
+
+        // For Phoenix, try using window.location
+        if (navigator.userAgent.toLowerCase().includes('phoenix')) {
+            // Phoenix browser - try opening in new tab
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.write('<pre>' + reportText + '</pre>');
+                win.document.title = fileName;
+                win.document.close();
+                showToast('📄 Report opened in new tab. Save as text file.');
+            } else {
+                // Popup blocked - use the textarea fallback
+                textareaFallback(reportText, fileName);
+            }
+            return;
+        }
+
+        // Standard download for other browsers
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${name}_Report_${new Date().toISOString().slice(0,10)}.txt`;
+        a.download = fileName;
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
 
-        const msg = document.createElement('div');
-        msg.style.cssText = `
-            position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-            background:var(--green); color:white; padding:12px 24px;
-            border-radius:10px; z-index:1001; font-weight:600;
-            animation: fadeIn 0.3s ease;
-        `;
-        msg.textContent = '✅ Report downloaded successfully!';
-        document.body.appendChild(msg);
-        setTimeout(() => msg.remove(), 3000);
+        showToast('✅ Download started!');
+    } catch (error) {
+        console.error('Download error:', error);
+        showToast('❌ Download failed. Please try copy instead.');
+        textareaFallback(reportText, fileName);
     }
+}
 
     // ============================================================
     // AI CHAT (Existing code preserved)
