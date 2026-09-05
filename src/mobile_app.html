@@ -4457,100 +4457,142 @@ function handleLogout() {
         });
     }
 
-    async function loadMembersForPaymentSelect(chamaId) {
-        const select = document.getElementById('paymentMemberSelect');
-        select.innerHTML = '<option value="">Loading...</option>';
+ async function loadMembersForPaymentSelect(chamaId) {
+    const select = document.getElementById('paymentMemberSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
 
-        try {
-            const response = await fetch(`${API_URL}/chama/members?id=${chamaId}`, {
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            });
-
-            const data = await response.json();
-            select.innerHTML = '<option value="">Select a member...</option>';
-
-            if (data.success && data.members) {
-                data.members.forEach(member => {
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify({
-                        id: member.id,
-                        name: member.name,
-                        type: member.type || 'REGISTERED'
-                    });
-                    option.textContent = member.name + (member.role === 'LEADER' ? ' (Leader)' : '');
-                    select.appendChild(option);
-                });
+    try {
+        const response = await fetch(`${API_URL}/chama/members?id=${chamaId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
-        } catch (error) {
-            console.error('Error loading members:', error);
-            select.innerHTML = '<option value="">Error loading members</option>';
+        });
+
+        console.log('📡 Members response status:', response.status);
+
+        const data = await response.json();
+        console.log('📦 Full members response:', data);
+
+        select.innerHTML = '<option value="">Select a member...</option>';
+
+        if (data.success && data.members) {
+            data.members.forEach(member => {
+                const option = document.createElement('option');
+
+                console.log('👤 Member data:', member);
+
+                // Try different possible ID fields
+                const userId = member.user_id || member.id || member.userId;
+                const userName = member.name || member.fullname || member.username || 'Unknown';
+
+                // Store as valid JSON string
+                const memberData = {
+                    id: parseInt(userId),
+                    name: String(userName),
+                    type: member.type || 'REGISTERED'
+                };
+
+                option.value = JSON.stringify(memberData);
+                option.textContent = userName + (member.role === 'LEADER' ? ' (Leader)' : '');
+                select.appendChild(option);
+            });
+        } else {
+            console.warn('⚠️ No members found or API error:', data);
+            select.innerHTML = '<option value="">No members available</option>';
         }
+    } catch (error) {
+        console.error('Error loading members:', error);
+        select.innerHTML = '<option value="">Error loading members</option>';
+        showToast('❌ Failed to load members');
+    }
+}
+
+async function recordPaymentChama(chamaId) {
+    const select = document.getElementById('paymentMemberSelect');
+    const amountInput = document.getElementById('paymentAmountChama');
+    const methodSelect = document.getElementById('paymentMethodChama');
+
+    const selectedValue = select.value;
+    const amount = amountInput.value.trim();
+    const method = methodSelect.value;
+
+    if (!selectedValue) {
+        alert('❌ Please select a member');
+        return;
     }
 
-    async function recordPaymentChama(chamaId) {
-        const select = document.getElementById('paymentMemberSelect');
-        const amountInput = document.getElementById('paymentAmountChama');
-        const methodSelect = document.getElementById('paymentMethodChama');
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('❌ Please enter a valid amount');
+        amountInput.focus();
+        return;
+    }
 
-        const selectedValue = select.value;
-        const amount = amountInput.value.trim();
-        const method = methodSelect.value;
+    try {
+        // Parse the selected value correctly
+        const memberData = JSON.parse(selectedValue);
+        const userId = memberData.id;  // This is the user_id
+        const memberName = memberData.name;
 
-        if (!selectedValue) {
-            alert('❌ Please select a member');
+        if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
             return;
         }
 
-        if (!amount || parseFloat(amount) <= 0) {
-            alert('❌ Please enter a valid amount');
-            amountInput.focus();
-            return;
-        }
+        showLoading(true);
 
+        // Build request body - make sure all values are valid
+        const requestBody = {
+            chama_id: parseInt(chamaId),
+            user_id: parseInt(userId),
+            amount: parseFloat(amount),
+            payment_method: String(method)
+        };
+
+        console.log('📤 Sending payment request:', JSON.stringify(requestBody));
+
+        const response = await fetch(`${API_URL}/chama/contribute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestBody)  // This ensures valid JSON
+        });
+
+        // Log response status
+        console.log('📡 Payment response status:', response.status);
+
+        // Get raw response text first
+        const responseText = await response.text();
+        console.log('📥 Raw payment response:', responseText);
+
+        let data;
         try {
-            const memberData = JSON.parse(selectedValue);
-            const memberId = memberData.id;
-            const memberName = memberData.name;
-
-            if (!confirm(`Record payment of Ksh ${formatNumber(parseFloat(amount))} for ${memberName}?`)) {
-                return;
-            }
-
-            showLoading(true);
-
-            const response = await fetch(`${API_URL}/chama/contribute`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`
-                },
-                body: JSON.stringify({
-                    chama_id: chamaId,
-                    user_id: memberId,
-                    amount: parseFloat(amount),
-                    payment_method: method
-                })
-            });
-
-            const data = await response.json();
-            showLoading(false);
-
-            if (data.success) {
-                alert(
-                    `✅ Payment recorded!\n\nMember: ${data.member_name}\nAmount: Ksh ${formatNumber(data.amount)}\nMethod: ${data.payment_method}`
-                    );
-                const overlay = document.querySelector('div[style*="fixed"]');
-                if (overlay) overlay.remove();
-                viewChama(chamaId);
-            } else {
-                alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Network error: ${error.message}`);
-            console.error('Record payment error:', error);
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Failed to parse response:', responseText);
+            throw new Error('Server returned invalid response: ' + responseText);
         }
+
+        showLoading(false);
+
+        if (response.ok && data.success) {
+            alert(
+                `✅ Payment recorded!\n\nMember: ${data.member_name || memberName}\nAmount: Ksh ${formatNumber(data.amount || amount)}\nMethod: ${data.payment_method || method}`
+            );
+            // Close the overlay
+            const overlay = document.querySelector('div[style*="fixed"]');
+            if (overlay) overlay.remove();
+            // Refresh chama details
+            viewChama(chamaId);
+        } else {
+            alert(`❌ Failed to record payment: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Network error: ${error.message}`);
+        console.error('Record payment error:', error);
     }
+}
 
     // ============================================================
     // PAYMENT DETAILS EDITOR (Chama)
