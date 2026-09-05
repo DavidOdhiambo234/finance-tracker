@@ -1629,7 +1629,13 @@ public class MobileApiServer {
                 int requestId = request.getInt("request_id");
                 String action = request.getString("action");
 
-                if (!"APPROVE".equals(action) && !"REJECT".equals(action)) {
+                // ✅ DEBUG: Log the action
+                System.out.println("🔍 PROCESSING: ID=" + requestId + ", action='" + action + "'");
+
+                // ✅ FIX: Normalize to uppercase
+                String actionUpper = action.toUpperCase();
+
+                if (!"APPROVE".equals(actionUpper) && !"REJECT".equals(actionUpper)) {
                     sendResponse(exchange, 400, "{\"error\":\"Action must be APPROVE or REJECT\"}");
                     return;
                 }
@@ -1661,7 +1667,10 @@ public class MobileApiServer {
                     rs.close();
                     getPst.close();
 
-                    String status = "APPROVE".equals(action) ? "APPROVED" : "REJECTED";
+                    // ✅ Use normalized action
+                    boolean isApproved = "APPROVE".equals(actionUpper);
+                    String status = isApproved ? "APPROVED" : "REJECTED";
+
                     PreparedStatement updatePst = conn.prepareStatement(
                             "UPDATE chama_members SET status = ?, approved_by = ?, approved_at = NOW() WHERE id = ?");
                     updatePst.setString(1, status);
@@ -1672,15 +1681,28 @@ public class MobileApiServer {
 
                     System.out.println("✅ Request " + requestId + " " + status + " by user: " + userId);
 
+                    // ✅ Send notification to MEMBER
                     try {
-                        String message = "APPROVED".equals(action)
+                        String message = isApproved
                                 ? "🎉 Your request to join the Chama has been APPROVED! You can now view and contribute."
                                 : "❌ Your request to join the Chama has been REJECTED.";
-                        NotificationService.create(memberUserId, message,
-                                "APPROVED".equals(action) ? NotificationService.SUCCESS : NotificationService.WARNING);
-                        System.out.println("✅ Notification sent to user: " + memberUserId);
+                        String notifType = isApproved ? NotificationService.SUCCESS : NotificationService.WARNING;
+                        NotificationService.create(memberUserId, message, notifType);
+                        System.out.println("✅ Notification sent to member: " + memberUserId + " (Type: " + notifType + ")");
                     } catch (Exception e) {
                         System.out.println("⚠️ Could not send notification: " + e.getMessage());
+                    }
+
+                    // ✅ Send notification to LEADER too
+                    try {
+                        String leaderMessage = isApproved
+                                ? "✅ You approved " + memberUsername + " to join the Chama."
+                                : "❌ You rejected " + memberUsername + "'s request to join the Chama.";
+                        String leaderNotifType = isApproved ? NotificationService.SUCCESS : NotificationService.WARNING;
+                        NotificationService.create(userId, leaderMessage, leaderNotifType);
+                        System.out.println("✅ Notification sent to leader: " + userId + " (Type: " + leaderNotifType + ")");
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Could not send notification to leader: " + e.getMessage());
                     }
 
                     JSONObject response = new JSONObject();
@@ -1688,6 +1710,7 @@ public class MobileApiServer {
                     response.put("message", "Request " + action.toLowerCase() + "d successfully");
                     response.put("status", status);
                     response.put("member_username", memberUsername);
+                    response.put("action", actionUpper); // ✅ Return the action for debugging
                     sendResponse(exchange, 200, response.toString());
 
                 }
@@ -4212,6 +4235,9 @@ public class MobileApiServer {
     // ============================================================
 // EXPENSE CATEGORIES HANDLER - FIXED FOR UNIQUE CATEGORIES
 // ============================================================
+    // ============================================================
+// EXPENSE CATEGORIES HANDLER - FIXED TO SHOW ALL CATEGORIES
+// ============================================================
     static class ExpenseCategoriesHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -4233,10 +4259,12 @@ public class MobileApiServer {
                 }
 
                 try (Connection conn = SecureDatabaseConnection.connect()) {
-                    // Use DISTINCT to avoid duplicates
+                    // Show ALL system categories AND user-specific categories
                     PreparedStatement pst = conn.prepareStatement(
-                            "SELECT DISTINCT id, category_name as name, icon, color, is_system FROM expense_categories " +
-                                    "WHERE is_system = TRUE OR user_id = ? ORDER BY category_name"
+                            "SELECT id, category_name as name, icon, color, is_system " +
+                                    "FROM expense_categories " +
+                                    "WHERE is_system = TRUE OR user_id = ? " +
+                                    "ORDER BY category_name"
                     );
                     pst.setInt(1, userId);
                     ResultSet rs = pst.executeQuery();
