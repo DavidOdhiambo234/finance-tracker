@@ -3670,9 +3670,18 @@ public class MobileApiServer {
         }
         return contributions;
     }
-
     private static String generateChamaReportText(int chamaId, int userId, Connection conn) throws SQLException {
         StringBuilder sb = new StringBuilder();
+
+        // ✅ FIX: Format dates in EAT timezone (UTC+3)
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("Africa/Nairobi"));
+
+        java.text.SimpleDateFormat dateTimeFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        dateTimeFormat.setTimeZone(java.util.TimeZone.getTimeZone("Africa/Nairobi"));
+
+        java.text.SimpleDateFormat reportDateFormat = new java.text.SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy");
+        reportDateFormat.setTimeZone(java.util.TimeZone.getTimeZone("Africa/Nairobi"));
 
         PreparedStatement chamaPst = conn.prepareStatement(
                 "SELECT g.*, COALESCE(u.fullname, u.username) as leader_name FROM chama_groups g " +
@@ -3698,6 +3707,7 @@ public class MobileApiServer {
         chamaRs.close();
         chamaPst.close();
 
+        // ✅ FIX: Format dates in SQL queries for EAT timezone
         PreparedStatement membersPst = conn.prepareStatement(
                 "SELECT u.id, COALESCE(u.fullname, u.username) as member_name, cm.role, cm.join_date " +
                         "FROM chama_members cm JOIN users u ON cm.user_id = u.id " +
@@ -3705,8 +3715,11 @@ public class MobileApiServer {
         membersPst.setInt(1, chamaId);
         ResultSet membersRs = membersPst.executeQuery();
 
+        // ✅ FIX: Format contribution_date in EAT timezone
         PreparedStatement contribPst = conn.prepareStatement(
-                "SELECT c.amount, c.contribution_date, c.payment_method, COALESCE(u.fullname, u.username) as member_name " +
+                "SELECT c.amount, " +
+                        "DATE_FORMAT(CONVERT_TZ(c.contribution_date, '+00:00', '+03:00'), '%Y-%m-%d %H:%i:%s') as contribution_date, " +
+                        "c.payment_method, COALESCE(u.fullname, u.username) as member_name " +
                         "FROM chama_contributions c JOIN users u ON c.user_id = u.id " +
                         "WHERE c.chama_id = ? AND c.status = 'CONFIRMED' ORDER BY c.contribution_date DESC LIMIT 50");
         contribPst.setInt(1, chamaId);
@@ -3724,7 +3737,7 @@ public class MobileApiServer {
             Map<String, Object> contrib = new HashMap<>();
             contrib.put("amount", amount);
             contrib.put("member_name", contribRs.getString("member_name"));
-            contrib.put("date", contribRs.getString("contribution_date"));
+            contrib.put("date", contribRs.getString("contribution_date")); // Already in EAT
             contrib.put("method", contribRs.getString("payment_method"));
             contributions.add(contrib);
         }
@@ -3757,7 +3770,8 @@ public class MobileApiServer {
         sb.append("  Name        : ").append(groupName).append("\n");
         sb.append("  Code        : ").append(groupCode).append("\n");
         sb.append("  Leader      : ").append(leaderName).append("\n");
-        sb.append("  Created     : ").append(createdAt).append("\n");
+        // ✅ FIX: Format created_at in EAT
+        sb.append("  Created     : ").append(createdAt != null ? dateTimeFormat.format(createdAt) : "N/A").append("\n");
         sb.append("  Period      : ").append(startDate).append(" → ").append(endDate).append("\n");
         sb.append("  Frequency   : ").append(frequency).append("\n");
         sb.append("\n");
@@ -3823,7 +3837,8 @@ public class MobileApiServer {
         sb.append("\n");
 
         sb.append("═══════════════════════════════════════════════════════════════════\n");
-        sb.append("  Report generated: ").append(new Date()).append("\n");
+        // ✅ FIX: Report generated in EAT timezone
+        sb.append("  Report generated: ").append(reportDateFormat.format(new java.util.Date())).append("\n");
         sb.append("  © Supreme Money Coach - Your Path to Financial Freedom\n");
         sb.append("═══════════════════════════════════════════════════════════════════\n");
 
