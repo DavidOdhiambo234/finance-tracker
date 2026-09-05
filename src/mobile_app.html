@@ -6115,10 +6115,9 @@ function showReportDialog(reportText, chamaName) {
         return;
     }
 
-    // ✅ FIX: Get the report text
+    // Get the report text
     let reportText = overlay.dataset.report;
     if (!reportText || reportText.trim().length === 0) {
-        // Try to get from the body text
         const body = overlay.querySelector('div[style*="font-family"]');
         if (body) {
             reportText = body.textContent;
@@ -6130,7 +6129,7 @@ function showReportDialog(reportText, chamaName) {
         return;
     }
 
-    // ✅ FIX: Get the name with proper fallbacks
+    // Get the name
     const name = overlay.dataset.chamaName || chamaName || 'Chama_Report';
     const cleanName = name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'Chama_Report';
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -6147,46 +6146,26 @@ function showReportDialog(reportText, chamaName) {
             return;
         }
 
-        // Try using the modern File System API
-        if (window.showSaveFilePicker) {
-            const file = new File([blob], fileName, { type: 'text/plain' });
-            window.showSaveFilePicker({ suggestedName: fileName })
-                .then(handle => handle.createWritable()
-                    .then(writable => writable.write(file))
-                    .then(writable => writable.close()))
-                .then(() => showToast('✅ Report saved!'))
-                .catch(() => showToast('❌ Save cancelled'));
-            return;
-        }
+        // ✅ FIX: REMOVE the File System API - it's causing the "Save cancelled" issue
+        // Just use the standard download method for all browsers
 
-        // Phoenix browser fallback
-        if (navigator.userAgent.toLowerCase().includes('phoenix')) {
-            const win = window.open('', '_blank');
-            if (win) {
-                win.document.write('<pre>' + reportText + '</pre>');
-                win.document.title = fileName;
-                win.document.close();
-                showToast('📄 Report opened in new tab. Save as text file.');
-            } else {
-                textareaFallback(reportText, fileName);
-            }
-            return;
-        }
-
-        // Standard download
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         a.style.display = 'none';
         document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 1000);
 
-        showToast(`✅ Downloading: ${fileName} (${blob.size} bytes)`);
+        // Use a small delay to ensure the DOM is ready
+        setTimeout(() => {
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 200);
+        }, 100);
+
+        showToast(`✅ Downloading: ${fileName}`);
 
     } catch (error) {
         console.error('Download error:', error);
@@ -6297,7 +6276,7 @@ function downloadAsFile(button) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }, 1000);
-    
+
     showToast(`✅ Downloading: ${fileName}`);
 }
 
