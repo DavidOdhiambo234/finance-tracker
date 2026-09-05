@@ -6027,101 +6027,128 @@ async function markAllRead() {
             console.error('Export report error:', error);
         }
     }
+function showReportDialog(reportText, chamaName) {
+    // ✅ FIX: Use a default name if chamaName is empty
+    const safeChamaName = chamaName || 'Chama_Report';
 
-    function showReportDialog(reportText, chamaName) {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed; top:0; left:0; right:0; bottom:0;
-            background: rgba(0,0,0,0.8); z-index:1000;
-            display:flex; justify-content:center; align-items:center;
-            padding:20px;
-        `;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; top:0; left:0; right:0; bottom:0;
+        background: rgba(0,0,0,0.8); z-index:1000;
+        display:flex; justify-content:center; align-items:center;
+        padding:20px;
+    `;
 
-        const dialog = document.createElement('div');
-        dialog.style.cssText = `
-            background: var(--bg-secondary); border-radius:16px;
-            max-width: 600px; width: 100%; max-height: 80vh;
-            border: 2px solid var(--amber);
-            display:flex; flex-direction:column;
-            overflow:hidden;
-        `;
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: var(--bg-secondary); border-radius:16px;
+        max-width: 600px; width: 100%; max-height: 80vh;
+        border: 2px solid var(--amber);
+        display:flex; flex-direction:column;
+        overflow:hidden;
+    `;
 
-        const header = document.createElement('div');
-        header.style.cssText = `
-            padding:16px 20px; border-bottom:1px solid var(--border-color);
-            display:flex; justify-content:space-between; align-items:center;
-            flex-shrink:0;
-        `;
-        header.innerHTML = `
-            <span style="font-size:18px; font-weight:700; color:var(--amber);">
-                📄 ${chamaName} Report
-            </span>
-            <button onclick="this.closest('div').parentElement.remove()" style="
-                background:none; border:none; color:var(--red); font-size:24px; cursor:pointer;
-            ">✖</button>
-        `;
+    const header = document.createElement('div');
+    header.style.cssText = `
+        padding:16px 20px; border-bottom:1px solid var(--border-color);
+        display:flex; justify-content:space-between; align-items:center;
+        flex-shrink:0;
+    `;
+    header.innerHTML = `
+        <span style="font-size:18px; font-weight:700; color:var(--amber);">
+            📄 ${safeChamaName} Report
+        </span>
+        <button onclick="this.closest('div').parentElement.remove()" style="
+            background:none; border:none; color:var(--red); font-size:24px; cursor:pointer;
+        ">✖</button>
+    `;
 
-        const body = document.createElement('div');
-        body.style.cssText = `
-            padding:20px; overflow-y:auto; flex:1;
-            font-family: 'Courier New', monospace;
-            font-size: 12px; color: var(--text-primary);
-            white-space: pre-wrap; word-break: break-word;
-            line-height: 1.5;
-        `;
-        body.textContent = reportText;
+    const body = document.createElement('div');
+    body.style.cssText = `
+        padding:20px; overflow-y:auto; flex:1;
+        font-family: 'Courier New', monospace;
+        font-size: 12px; color: var(--text-primary);
+        white-space: pre-wrap; word-break: break-word;
+        line-height: 1.5;
+    `;
+    body.textContent = reportText;
 
-        const footer = document.createElement('div');
-        footer.style.cssText = `
-            padding:12px 20px; border-top:1px solid var(--border-color);
-            display:flex; justify-content:center; gap:12px;
-            flex-shrink:0;
-        `;
-        footer.innerHTML = `
-            <button onclick="downloadReport('${chamaName}')" style="
-                background:var(--green); color:white; border:none;
-                padding:10px 24px; border-radius:8px; cursor:pointer; font-weight:600;
-            ">⬇ DOWNLOAD</button>
-            <button onclick="this.closest('div').parentElement.parentElement.remove()" style="
-                background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color);
-                padding:10px 24px; border-radius:8px; cursor:pointer;
-            ">✖ CLOSE</button>
-        `;
+    const footer = document.createElement('div');
+    footer.style.cssText = `
+        padding:12px 20px; border-top:1px solid var(--border-color);
+        display:flex; justify-content:center; gap:12px;
+        flex-shrink:0;
+    `;
+    footer.innerHTML = `
+        <!-- ✅ FIX: Pass the safe name -->
+        <button onclick="downloadReport('${safeChamaName}')" style="
+            background:var(--green); color:white; border:none;
+            padding:10px 24px; border-radius:8px; cursor:pointer; font-weight:600;
+        ">⬇ DOWNLOAD</button>
+        <button onclick="this.closest('div').parentElement.parentElement.remove()" style="
+            background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color);
+            padding:10px 24px; border-radius:8px; cursor:pointer;
+        ">✖ CLOSE</button>
+    `;
 
-        dialog.appendChild(header);
-        dialog.appendChild(body);
-        dialog.appendChild(footer);
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    dialog.appendChild(footer);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
 
-        overlay.dataset.report = reportText;
-        overlay.dataset.chamaName = chamaName;
+    // ✅ FIX: Store both the report and the name
+    overlay.dataset.report = reportText;
+    overlay.dataset.chamaName = safeChamaName;
 
-        overlay.addEventListener('click', function(e) {
-            if (e.target === this) {
-                this.remove();
-            }
-        });
-    }
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.remove();
+        }
+    });
+}
 
-  function downloadReport(chamaName) {
+ function downloadReport(chamaName) {
     const overlay = document.querySelector('div[data-report]');
     if (!overlay) {
         showToast('❌ No report data found');
         return;
     }
 
-    const reportText = overlay.dataset.report;
-    const name = overlay.dataset.chamaName || 'Chama_Report';
-    const fileName = `${name}_Report_${new Date().toISOString().slice(0,10)}.txt`;
+    // ✅ FIX: Get the report text
+    let reportText = overlay.dataset.report;
+    if (!reportText || reportText.trim().length === 0) {
+        // Try to get from the body text
+        const body = overlay.querySelector('div[style*="font-family"]');
+        if (body) {
+            reportText = body.textContent;
+        }
+    }
 
-    // ✅ SIMPLE FIX: Use fetch to trigger download
+    if (!reportText || reportText.trim().length === 0) {
+        showToast('❌ Report data is empty');
+        return;
+    }
+
+    // ✅ FIX: Get the name with proper fallbacks
+    const name = overlay.dataset.chamaName || chamaName || 'Chama_Report';
+    const cleanName = name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'Chama_Report';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `${cleanName}_Report_${dateStr}.txt`;
+
+    console.log('📄 Downloading:', fileName);
+    console.log('📄 Report size:', reportText.length, 'characters');
+
     try {
         const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
 
-        // Use the File API if available
+        if (blob.size === 0) {
+            showToast('❌ Report is empty (0 bytes)');
+            return;
+        }
+
+        // Try using the modern File System API
         if (window.showSaveFilePicker) {
-            // Modern browsers with File System API
             const file = new File([blob], fileName, { type: 'text/plain' });
             window.showSaveFilePicker({ suggestedName: fileName })
                 .then(handle => handle.createWritable()
@@ -6132,12 +6159,8 @@ async function markAllRead() {
             return;
         }
 
-        // Fallback for mobile browsers
-        const url = URL.createObjectURL(blob);
-
-        // For Phoenix, try using window.location
+        // Phoenix browser fallback
         if (navigator.userAgent.toLowerCase().includes('phoenix')) {
-            // Phoenix browser - try opening in new tab
             const win = window.open('', '_blank');
             if (win) {
                 win.document.write('<pre>' + reportText + '</pre>');
@@ -6145,13 +6168,13 @@ async function markAllRead() {
                 win.document.close();
                 showToast('📄 Report opened in new tab. Save as text file.');
             } else {
-                // Popup blocked - use the textarea fallback
                 textareaFallback(reportText, fileName);
             }
             return;
         }
 
-        // Standard download for other browsers
+        // Standard download
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
@@ -6163,12 +6186,119 @@ async function markAllRead() {
             URL.revokeObjectURL(url);
         }, 1000);
 
-        showToast('✅ Download started!');
+        showToast(`✅ Downloading: ${fileName} (${blob.size} bytes)`);
+
     } catch (error) {
         console.error('Download error:', error);
-        showToast('❌ Download failed. Please try copy instead.');
+        showToast('❌ Download failed: ' + error.message);
         textareaFallback(reportText, fileName);
     }
+}
+function textareaFallback(data, fileName) {
+    if (!data || data.trim().length === 0) {
+        showToast('❌ No data to save');
+        return;
+    }
+
+    const cleanFileName = fileName.replace(/[^a-zA-Z0-9_\-.]/g, '_');
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top:0; left:0; right:0; bottom:0;
+        background: rgba(0,0,0,0.9); z-index: 9999;
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        padding: 20px;
+    `;
+
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 20px;
+        max-width: 100%;
+        width: 100%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+    `;
+
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="color:var(--amber);">📄 ${cleanFileName}</h3>
+            <button onclick="this.closest('div').parentElement.parentElement.remove()"
+                    style="background:var(--red); color:white; border:none; border-radius:50%; width:32px; height:32px; font-size:20px; cursor:pointer;">✖</button>
+        </div>
+        <div style="color:var(--text-secondary); font-size:12px; margin-bottom:8px;">
+            ⚠️ Download failed. Copy the text below (${data.length} characters):
+        </div>
+        <textarea readonly style="
+            flex:1; min-height:200px;
+            background:var(--bg-primary); color:var(--text-primary);
+            border:1px solid var(--border-color); border-radius:8px;
+            padding:12px; font-family:'Courier New',monospace;
+            font-size:12px; width:100%; resize:vertical;
+        ">${data}</textarea>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <button onclick="copyText(this)"
+                    style="flex:1; background:var(--green); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:600;">
+                📋 COPY
+            </button>
+            <button onclick="downloadAsFile(this)"
+                    style="flex:1; background:var(--blue); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:600;">
+                💾 DOWNLOAD
+            </button>
+        </div>
+    `;
+
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    modal._textarea = content.querySelector('textarea');
+    modal._fileName = cleanFileName;
+}
+
+function copyText(button) {
+    const modal = button.closest('div[style*="fixed"]');
+    if (!modal) return;
+    const textarea = modal._textarea;
+    if (!textarea) return;
+
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+
+    try {
+        document.execCommand('copy');
+        showToast('✅ Copied to clipboard!');
+        button.textContent = '✅ COPIED!';
+        setTimeout(() => {
+            button.textContent = '📋 COPY';
+        }, 2000);
+    } catch (e) {
+        showToast('❌ Failed to copy');
+    }
+}
+
+function downloadAsFile(button) {
+    const modal = button.closest('div[style*="fixed"]');
+    if (!modal) return;
+    const textarea = modal._textarea;
+    const fileName = modal._fileName || 'report.txt';
+    if (!textarea) return;
+
+    const blob = new Blob([textarea.value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 1000);
+    
+    showToast(`✅ Downloading: ${fileName}`);
 }
 
     // ============================================================
