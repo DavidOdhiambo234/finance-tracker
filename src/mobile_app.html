@@ -7553,7 +7553,10 @@ function updateExpenseChart(expenses) {
     // ============================================================
     // INITIALIZE APP
     // ============================================================
-    document.addEventListener('DOMContentLoaded', function() {
+ // ============================================================
+// INITIALIZE APP
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
     // CHECK FOR LOGOUT STATE - FIXED
     // ============================================================
@@ -7568,20 +7571,6 @@ function updateExpenseChart(expenses) {
         document.getElementById('bottomNav').style.display = 'none';
         return; // Don't auto-login
     }
-       const token = localStorage.getItem('token');
-    if (token) {
-        setTimeout(() => {
-            loadNotifications();
-        }, 1000);
-    }
-
-    // Auto-refresh notifications every 30 seconds
-    setInterval(function() {
-        if (currentToken) {
-            loadNotifications();
-        }
-    }, 30000);
-});
 
     // ============================================================
     // NORMAL LOGIN CHECK
@@ -7602,6 +7591,7 @@ function updateExpenseChart(expenses) {
             loadBudgets();
             loadBudgetItems();
             loadCategories();
+            loadNotifications();
         } catch (e) {
             console.error('Error restoring session:', e);
             localStorage.removeItem('token');
@@ -7620,6 +7610,19 @@ function updateExpenseChart(expenses) {
         document.getElementById('bottomNav').style.display = 'none';
     }
 
+    // Load notifications if logged in
+    if (token) {
+        setTimeout(function() {
+            loadNotifications();
+        }, 1000);
+    }
+
+    // Auto-refresh notifications every 30 seconds
+    setInterval(function() {
+        if (currentToken) {
+            loadNotifications();
+        }
+    }, 30000);
 
     // ============================================================
     // EVENT LISTENERS
@@ -7680,17 +7683,17 @@ function updateExpenseChart(expenses) {
     // FINAL CHECK - If nothing loaded, show login
     // ============================================================
     // This ensures login screen is shown if all else fails
-    if (!currentToken && !document.getElementById('loginScreen').style.display === 'block') {
+    if (!currentToken && document.getElementById('loginScreen').style.display !== 'block') {
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('appHeader').style.display = 'none';
         document.getElementById('bottomNav').style.display = 'none';
     }
-});
 
     console.log('✅ Supreme Money Coach App Loaded Successfully!');
     console.log('📊 Simple Expense Tracker with Budget Planning');
     console.log('🔗 API URL:', API_URL);
+}); // <-- Only ONE closing brace for DOMContentLoaded
 </script>
 </body>
 </html>
