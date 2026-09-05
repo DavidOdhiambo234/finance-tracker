@@ -1609,6 +1609,132 @@
             color: var(--red);
             text-align: right;
         }
+        /* ============================================================
+   LAPTOP SCREEN FIXES
+   ============================================================ */
+
+/* Fix for screens wider than 768px */
+@media (min-width: 769px) {
+    .screen {
+        padding: 20px 30px 80px 30px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Fix savings card layout */
+    .savings-card {
+        padding: 24px 28px;
+    }
+
+    .savings-card .balance-row .balance-amount {
+        font-size: 32px;
+    }
+
+    /* Fix chama cards grid */
+    #chamaCards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .chama-card {
+        padding: 18px 20px;
+    }
+
+    /* Fix budget items */
+    .budget-item-card {
+        padding: 14px 18px;
+    }
+
+    /* Fix expense items */
+    .expense-item {
+        padding: 14px 18px;
+    }
+
+    /* Fix modals */
+    .modal-content {
+        max-width: 500px;
+        padding: 28px 32px;
+    }
+
+    /* Fix bottom nav spacing */
+    .bottom-nav {
+        padding: 8px 0 12px 0;
+    }
+
+    .bottom-nav .nav-item {
+        font-size: 10px;
+        padding: 4px 12px;
+    }
+
+    .bottom-nav .nav-item .icon {
+        font-size: 22px;
+    }
+}
+
+/* Fix for very large screens */
+@media (min-width: 1200px) {
+    #chamaCards {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .screen {
+        max-width: 1400px;
+        padding: 24px 40px 80px 40px;
+    }
+
+    .savings-card .balance-row .balance-amount {
+        font-size: 36px;
+    }
+}
+
+/* Fix for small laptops */
+@media (max-width: 1024px) and (min-width: 769px) {
+    #chamaCards {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .screen {
+        padding: 16px 20px 80px 20px;
+    }
+}
+
+/* Ensure no horizontal scroll */
+body {
+    overflow-x: hidden;
+}
+
+/* Fix container widths */
+.screen {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+/* Fix tables to not overflow */
+.debt-table-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.debt-table {
+    min-width: 600px;
+}
+
+/* Fix chart container */
+.chart-container canvas {
+    max-width: 100%;
+    max-height: 250px;
+}
+
+/* Fix budget progress bars */
+.budget-progress-item {
+    max-width: 100%;
+}
+
+.budget-progress-item .progress-header {
+    flex-wrap: wrap;
+    gap: 4px;
+}
 
         /* ============================================================
            RESPONSIVE
@@ -5268,54 +5394,59 @@ async function recordPaymentChama(chamaId) {
         container.innerHTML = html;
     }
 
-    async function processRequest(requestId, action) {
-        const actionText = action === 'APPROVE' ? 'approve' : 'reject';
+  async function processRequest(requestId, action) {
+    const actionText = action === 'APPROVE' ? 'approve' : 'reject';
 
-        const request = pendingRequestsData.find(r => r.id === requestId);
-        const name = request ? request.display_name : 'this member';
+    const request = pendingRequestsData.find(r => r.id === requestId);
+    const name = request ? request.display_name : 'this member';
 
-        if (!confirm(`Are you sure you want to ${actionText} ${name}?`)) {
-            return;
-        }
-
-        showLoading(true);
-
-        try {
-            const response = await fetch(`${API_URL}/chama/process-request`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`
-                },
-                body: JSON.stringify({
-                    request_id: requestId,
-                    action: action
-                })
-            });
-
-            const data = await response.json();
-            showLoading(false);
-
-            if (data.success) {
-                alert(`✅ ${data.member_username} has been ${action.toLowerCase()}d!`);
-
-                const index = pendingRequestsData.findIndex(r => r.id === requestId);
-                if (index !== -1) {
-                    pendingRequestsData.splice(index, 1);
-                    renderPendingRequests(pendingRequestsData);
-                }
-
-                loadDashboard();
-            } else {
-                alert(`❌ Failed to process request: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Network error: ${error.message}`);
-            console.error('Process request error:', error);
-        }
+    if (!confirm(`Are you sure you want to ${actionText} ${name}?`)) {
+        return;
     }
 
+    showLoading(true);
+
+    try {
+        const response = await fetch(`${API_URL}/chama/process-request`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({
+                request_id: requestId,
+                action: action
+            })
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+            // Show correct notification based on action
+            const isApproved = action === 'APPROVE';
+            const statusMessage = isApproved ? 'APPROVED ✅' : 'REJECTED ❌';
+            const statusIcon = isApproved ? '🎉' : '❌';
+
+            alert(`✅ ${data.member_username} has been ${action.toLowerCase()}d!`);
+
+            // Remove from pending list
+            const index = pendingRequestsData.findIndex(r => r.id === requestId);
+            if (index !== -1) {
+                pendingRequestsData.splice(index, 1);
+                renderPendingRequests(pendingRequestsData);
+            }
+
+            loadDashboard();
+        } else {
+            alert(`❌ Failed to process request: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Network error: ${error.message}`);
+        console.error('Process request error:', error);
+    }
+}
     // ============================================================
     // PROFILE MANAGEMENT (Existing code preserved)
     // ============================================================
