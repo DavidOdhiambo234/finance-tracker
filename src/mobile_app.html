@@ -5269,9 +5269,8 @@ async function recordPaymentChama(chamaId) {
         container.innerHTML = html;
     }
 
-  async function processRequest(requestId, action) {
+ async function processRequest(requestId, action) {
     const actionText = action === 'APPROVE' ? 'approve' : 'reject';
-
     const request = pendingRequestsData.find(r => r.id === requestId);
     const name = request ? request.display_name : 'this member';
 
@@ -5298,11 +5297,7 @@ async function recordPaymentChama(chamaId) {
         showLoading(false);
 
         if (data.success) {
-            // Show correct notification based on action
             const isApproved = action === 'APPROVE';
-            const statusMessage = isApproved ? 'APPROVED ✅' : 'REJECTED ❌';
-            const statusIcon = isApproved ? '🎉' : '❌';
-
             alert(`✅ ${data.member_username} has been ${action.toLowerCase()}d!`);
 
             // Remove from pending list
@@ -5312,7 +5307,10 @@ async function recordPaymentChama(chamaId) {
                 renderPendingRequests(pendingRequestsData);
             }
 
+            // ✅ CRITICAL FIX: Refresh notifications to show the new notification
+            await loadNotifications();
             loadDashboard();
+
         } else {
             alert(`❌ Failed to process request: ${data.error || 'Unknown error'}`);
         }
