@@ -1761,7 +1761,9 @@ public class MobileApiServer {
 
                 try (Connection conn = SecureDatabaseConnection.connect();
                      PreparedStatement pst = conn.prepareStatement(
-                             "SELECT id, message, type, is_read, created_at " +
+                             // ✅ FIX: Format the date properly
+                             "SELECT id, message, type, is_read, " +
+                                     "DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+03:00'), '%Y-%m-%d %H:%i:%s') as created_at " +
                                      "FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?")) {
                     pst.setInt(1, userId);
                     pst.setInt(2, limit);
@@ -1776,7 +1778,7 @@ public class MobileApiServer {
                         notif.put("message", rs.getString("message"));
                         notif.put("type", rs.getString("type"));
                         notif.put("is_read", rs.getBoolean("is_read"));
-                        notif.put("created_at", rs.getString("created_at"));
+                        notif.put("created_at", rs.getString("created_at")); // Now in local time
                         notifications.put(notif);
 
                         if (!rs.getBoolean("is_read")) {
@@ -1801,6 +1803,8 @@ public class MobileApiServer {
             }
         }
     }
+
+
 
     // ============================================================
     // MARK NOTIFICATION READ HANDLER
