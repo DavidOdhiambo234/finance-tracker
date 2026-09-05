@@ -3148,6 +3148,8 @@ async function handleLogin() {
             loadBudgets();
             loadBudgetItems();
             loadCategories();
+            loadNotifications();
+            updateNotificationBadge(0);
         } else {
             showLoading(false);
             errorEl.textContent = data.error || 'Login failed';
@@ -5713,46 +5715,46 @@ async function removePhoto() {
     }
 
     async function loadNotifications() {
-        const container = document.getElementById('notificationsList');
-        container.innerHTML = `
-            <div style="text-align:center; padding:40px 20px;">
-                <div class="spinner" style="margin:10px auto;"></div>
-                <div style="color:var(--text-secondary);">Loading notifications...</div>
-            </div>
-        `;
+    const container = document.getElementById('notificationsList');
+    container.innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+            <div class="spinner" style="margin:10px auto;"></div>
+            <div style="color:var(--text-secondary);">Loading notifications...</div>
+        </div>
+    `;
 
-        try {
-            const response = await fetch(`${API_URL}/notifications`, {
-                headers: { 'Authorization': `Bearer ${currentToken}` }
-            });
+    try {
+        const response = await fetch(`${API_URL}/notifications`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (data.success) {
-                notificationsData = data.notifications || [];
-                unreadCount = data.unread_count || 0;
-                renderNotifications(notificationsData);
-                updateNotificationBadge(unreadCount);
-            } else {
-                container.innerHTML = `
-                    <div class="no-notifications">
-                        <div class="icon">❌</div>
-                        <div class="title">Error</div>
-                        <div class="subtitle">${data.error || 'Failed to load notifications'}</div>
-                    </div>
-                `;
-            }
-        } catch (error) {
+        if (data.success) {
+            notificationsData = data.notifications || [];
+            unreadCount = data.unread_count || 0;
+            renderNotifications(notificationsData);
+            updateNotificationBadge(unreadCount); // This updates the bell badge
+        } else {
             container.innerHTML = `
                 <div class="no-notifications">
                     <div class="icon">❌</div>
-                    <div class="title">Network Error</div>
-                    <div class="subtitle">${error.message}</div>
+                    <div class="title">Error</div>
+                    <div class="subtitle">${data.error || 'Failed to load notifications'}</div>
                 </div>
             `;
-            console.error('Load notifications error:', error);
         }
+    } catch (error) {
+        container.innerHTML = `
+            <div class="no-notifications">
+                <div class="icon">❌</div>
+                <div class="title">Network Error</div>
+                <div class="subtitle">${error.message}</div>
+            </div>
+        `;
+        console.error('Load notifications error:', error);
     }
+}
 
     function renderNotifications(notifications) {
         const container = document.getElementById('notificationsList');
@@ -5822,70 +5824,70 @@ async function removePhoto() {
         container.innerHTML = html;
     }
 
-    async function markNotificationRead(notificationId) {
-        try {
-            const response = await fetch(`${API_URL}/notifications/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`
-                },
-                body: JSON.stringify({ notification_id: notificationId })
-            });
+async function markNotificationRead(notificationId) {
+    try {
+        const response = await fetch(`${API_URL}/notifications/mark-read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({ notification_id: notificationId })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (data.success) {
-                const notif = notificationsData.find(n => n.id === notificationId);
-                if (notif) {
-                    notif.is_read = true;
-                    unreadCount = Math.max(0, unreadCount - 1);
-                    renderNotifications(notificationsData);
-                    updateNotificationBadge(unreadCount);
-                }
-            }
-        } catch (error) {
-            console.error('Mark notification read error:', error);
-        }
-    }
-
-    async function markAllRead() {
-        if (unreadCount === 0) {
-            alert('No unread notifications');
-            return;
-        }
-
-        if (!confirm(`Mark all ${unreadCount} notifications as read?`)) {
-            return;
-        }
-
-        showLoading(true);
-
-        try {
-            const response = await fetch(`${API_URL}/notifications/mark-all-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`
-                }
-            });
-
-            const data = await response.json();
-            showLoading(false);
-
-            if (data.success) {
-                notificationsData.forEach(n => n.is_read = true);
-                unreadCount = 0;
+        if (data.success) {
+            const notif = notificationsData.find(n => n.id === notificationId);
+            if (notif) {
+                notif.is_read = true;
+                unreadCount = Math.max(0, unreadCount - 1);
                 renderNotifications(notificationsData);
-                updateNotificationBadge(0);
-                alert(`✅ ${data.count} notifications marked as read`);
+                updateNotificationBadge(unreadCount); // Update badge immediately
             }
-        } catch (error) {
-            showLoading(false);
-            alert(`❌ Error: ${error.message}`);
-            console.error('Mark all read error:', error);
         }
+    } catch (error) {
+        console.error('Mark notification read error:', error);
     }
+}
+
+async function markAllRead() {
+    if (unreadCount === 0) {
+        alert('No unread notifications');
+        return;
+    }
+
+    if (!confirm(`Mark all ${unreadCount} notifications as read?`)) {
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const response = await fetch(`${API_URL}/notifications/mark-all-read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            }
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+            notificationsData.forEach(n => n.is_read = true);
+            unreadCount = 0;
+            renderNotifications(notificationsData);
+            updateNotificationBadge(0); // Update badge immediately
+            alert(`✅ ${data.count} notifications marked as read`);
+        }
+    } catch (error) {
+        showLoading(false);
+        alert(`❌ Error: ${error.message}`);
+        console.error('Mark all read error:', error);
+    }
+}
 
     async function deleteNotification(notificationId) {
         if (!confirm('Delete this notification?')) return;
@@ -5917,26 +5919,39 @@ async function removePhoto() {
         }
     }
 
-    async function updateNotificationBadge(count) {
-        const headerBadge = document.getElementById('headerNotifBadge');
-        if (count > 0) {
-            headerBadge.textContent = count > 99 ? '99+' : count;
-            headerBadge.classList.add('show');
-        } else {
-            headerBadge.classList.remove('show');
+   async function updateNotificationBadge(count) {
+    const headerBadge = document.getElementById('headerNotifBadge');
+    if (count > 0) {
+        headerBadge.textContent = count > 99 ? '99+' : count;
+        headerBadge.classList.add('show');
+        // Make bell pulse to draw attention
+        const bell = document.querySelector('.notif-bell');
+        if (bell) {
+            bell.style.animation = 'none';
+            setTimeout(() => {
+                bell.style.animation = 'bellPulse 0.5s ease 3';
+            }, 10);
         }
-
-        const badge = document.getElementById('notifUnreadBadge');
-        const unreadText = document.getElementById('notifUnreadCount');
-        if (badge && unreadText) {
-            if (count > 0) {
-                badge.style.display = 'block';
-                unreadText.textContent = count;
-            } else {
-                badge.style.display = 'none';
-            }
+    } else {
+        headerBadge.classList.remove('show');
+        const bell = document.querySelector('.notif-bell');
+        if (bell) {
+            bell.style.animation = 'none';
         }
     }
+
+    // Update the notifications screen badge
+    const badge = document.getElementById('notifUnreadBadge');
+    const unreadText = document.getElementById('notifUnreadCount');
+    if (badge && unreadText) {
+        if (count > 0) {
+            badge.style.display = 'block';
+            unreadText.textContent = count;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
 
     // ============================================================
     // EXPORT REPORT (Existing code preserved)
@@ -7553,6 +7568,20 @@ function updateExpenseChart(expenses) {
         document.getElementById('bottomNav').style.display = 'none';
         return; // Don't auto-login
     }
+       const token = localStorage.getItem('token');
+    if (token) {
+        setTimeout(() => {
+            loadNotifications();
+        }, 1000);
+    }
+
+    // Auto-refresh notifications every 30 seconds
+    setInterval(function() {
+        if (currentToken) {
+            loadNotifications();
+        }
+    }, 30000);
+});
 
     // ============================================================
     // NORMAL LOGIN CHECK
@@ -7590,6 +7619,7 @@ function updateExpenseChart(expenses) {
         document.getElementById('appHeader').style.display = 'none';
         document.getElementById('bottomNav').style.display = 'none';
     }
+
 
     // ============================================================
     // EVENT LISTENERS
