@@ -5597,17 +5597,22 @@ public class MobileApiServer {
                 sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
             }
         }
-
         private boolean sendResetEmail(String email, String name, String resetLink) {
             try {
                 String apiKey = System.getenv("SENDGRID_API_KEY");
+
+                // ✅ DEBUG: Print the API key (first few chars)
+                System.out.println("🔑 SENDGRID_API_KEY: " + (apiKey != null ? apiKey.substring(0, Math.min(10, apiKey.length())) + "..." : "NOT SET"));
 
                 if (apiKey == null || apiKey.isEmpty()) {
                     System.err.println("❌ SENDGRID_API_KEY not set!");
                     return false;
                 }
 
-                // ✅ FIX: Use string concatenation instead of text blocks
+                // ✅ DEBUG: Print the email details
+                System.out.println("📧 Sending email to: " + email);
+                System.out.println("🔗 Reset link: " + resetLink);
+
                 String json = "{"
                         + "\"personalizations\": ["
                         + "{"
@@ -5624,6 +5629,9 @@ public class MobileApiServer {
                         + "]"
                         + "}";
 
+                // ✅ DEBUG: Print the JSON (first 200 chars)
+                System.out.println("📤 JSON payload: " + json.substring(0, Math.min(200, json.length())) + "...");
+
                 java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL("https://api.sendgrid.com/v3/mail/send").openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
@@ -5633,11 +5641,23 @@ public class MobileApiServer {
                 conn.getOutputStream().write(json.getBytes("UTF-8"));
                 int responseCode = conn.getResponseCode();
 
+                // ✅ DEBUG: Read the response
+                System.out.println("📡 SendGrid response code: " + responseCode);
+
                 if (responseCode == 202) {
                     System.out.println("✅ Password reset email sent to: " + email);
                     return true;
                 } else {
                     System.err.println("❌ SendGrid error: " + responseCode);
+                    // Read error response
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            System.err.println("   " + line);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Could not read error response: " + e.getMessage());
+                    }
                     return false;
                 }
 
