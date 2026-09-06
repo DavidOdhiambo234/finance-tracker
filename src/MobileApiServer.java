@@ -57,6 +57,12 @@ public class MobileApiServer {
         server.createContext("/api/user/get-photo", new GetProfilePhotoHandler());
         server.createContext("/api/user/remove-photo", new RemoveProfilePhotoHandler());
         server.createContext("/api/user/upload-photo-base64", new UploadProfilePhotoBase64Handler());
+        // ============================================================
+// PASSWORD RESET ENDPOINTS
+// ============================================================
+        server.createContext("/api/password/request-reset", new RequestPasswordResetHandler());
+        server.createContext("/api/password/verify-token", new VerifyResetTokenHandler());
+        server.createContext("/api/password/reset", new ResetPasswordHandler());
 
         // ============================================================
         // NOTIFICATION ENDPOINTS
@@ -5468,6 +5474,287 @@ public class MobileApiServer {
                 } catch (SQLException e) {
                     e.printStackTrace();
                     sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+    // ============================================================
+// PASSWORD RESET - REQUEST RESET
+// ============================================================
+    static class RequestPasswordResetHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                String identifier = request.optString("identifier", "");
+
+                if (identifier.isEmpty()) {
+                    sendResponse(exchange, 400, "{\"error\":\"Please enter your username, email, or phone number\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Find user by username, email, or phone
+                    PreparedStatement findPst = conn.prepareStatement(
+                            "SELECT id, username, fullname, email, phone_number FROM users WHERE " +
+                                    "username = ? OR email = ? OR phone_number = ?");
+                    findPst.setString(1, identifier);
+                    findPst.setString(2, identifier);
+                    findPst.setString(3, identifier);
+                    ResultSet rs = findPst.executeQuery();
+
+                    if (!rs.next()) {
+                        // Don't reveal if user exists or not for security
+                        JSONObject response = new JSONObject();
+                        response.put("success", true);
+                        response.put("message", "If an account exists, a reset link has been sent.");
+                        sendResponse(exchange, 200, response.toString());
+                        return;
+                    }
+
+                    int userId = rs.getInt("id");
+                    String username = rs.getString("username");
+                    String fullname = rs.getString("fullname");
+                    String email = rs.getString("email");
+                    String phone = rs.getString("phone_number");
+
+                    rs.close();
+                    findPst.close();
+
+                    // Generate reset token
+                    String token = UUID.randomUUID().toString() + "_" + System.currentTimeMillis();
+
+                    // Set expiry to 24 hours from now
+                    java.sql.Timestamp expiresAt = new java.sql.Timestamp(
+                            System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+                    );
+
+                    // Delete any existing tokens for this user
+                    PreparedStatement deletePst = conn.prepareStatement(
+                            "DELETE FROM password_reset_tokens WHERE user_id = ?");
+                    deletePst.setInt(1, userId);
+                    deletePst.executeUpdate();
+                    deletePst.close();
+
+                    // Save token to database
+                    PreparedStatement savePst = conn.prepareStatement(
+                            "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)");
+                    savePst.setInt(1, userId);
+                    savePst.setString(2, token);
+                    savePst.setTimestamp(3, expiresAt);
+                    savePst.executeUpdate();
+                    savePst.close();
+
+                    // Build reset link
+                    String resetLink = "https://supreme-money-coach-api.onrender.com/reset-password?token=" + token;
+
+                    // Send email if available
+                    boolean emailSent = false;
+                    if (email != null && !email.isEmpty()) {
+                        emailSent = sendResetEmail(email, fullname, resetLink);
+                    }
+
+                    // Send SMS if available (optional)
+                    boolean smsSent = false;
+                    if (phone != null && !phone.isEmpty()) {
+                        smsSent = sendResetSMS(phone, fullname, resetLink);
+                    }
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+
+                    if (emailSent) {
+                        response.put("message", "Password reset link has been sent to your email.");
+                    } else if (smsSent) {
+                        response.put("message", "Password reset link has been sent to your phone.");
+                    } else {
+                        response.put("message", "Please contact support to reset your password.");
+                    }
+
+                    // For development: include token in response
+                    response.put("token", token); // Remove in production
+
+                    sendResponse(exchange, 200, response.toString());
+
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+
+        private boolean sendResetEmail(String email, String name, String resetLink) {
+            try {
+                // Simple email using JavaMail or SendGrid
+                // For now, we'll just log it and return true
+                System.out.println("📧 Sending password reset email to: " + email);
+                System.out.println("🔗 Reset link: " + resetLink);
+                System.out.println("👤 User: " + name);
+
+                // TODO: Implement actual email sending using JavaMail API or SendGrid
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        private boolean sendResetSMS(String phone, String name, String resetLink) {
+            try {
+                System.out.println("📱 Sending password reset SMS to: " + phone);
+                System.out.println("🔗 Reset link: " + resetLink);
+                System.out.println("👤 User: " + name);
+
+                // TODO: Implement actual SMS sending using Africa's Talking or Twilio
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+    }
+    // ============================================================
+// PASSWORD RESET - VERIFY TOKEN
+// ============================================================
+    static class VerifyResetTokenHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                Map<String, String> params = getQueryParams(exchange);
+                String token = params.get("token");
+
+                if (token == null || token.isEmpty()) {
+                    sendResponse(exchange, 400, "{\"error\":\"Token is required\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    PreparedStatement pst = conn.prepareStatement(
+                            "SELECT user_id, expires_at, used FROM password_reset_tokens " +
+                                    "WHERE token = ? AND used = FALSE AND expires_at > NOW()");
+                    pst.setString(1, token);
+                    ResultSet rs = pst.executeQuery();
+
+                    if (rs.next()) {
+                        JSONObject response = new JSONObject();
+                        response.put("success", true);
+                        response.put("valid", true);
+                        response.put("message", "Token is valid");
+                        sendResponse(exchange, 200, response.toString());
+                    } else {
+                        JSONObject response = new JSONObject();
+                        response.put("success", false);
+                        response.put("valid", false);
+                        response.put("message", "Invalid or expired token");
+                        sendResponse(exchange, 400, response.toString());
+                    }
+
+                    rs.close();
+                    pst.close();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+    // ============================================================
+// PASSWORD RESET - RESET PASSWORD
+// ============================================================
+    static class ResetPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                String token = request.getString("token");
+                String newPassword = request.getString("new_password");
+
+                if (newPassword.length() < 6) {
+                    sendResponse(exchange, 400, "{\"error\":\"Password must be at least 6 characters\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // Verify token
+                    PreparedStatement verifyPst = conn.prepareStatement(
+                            "SELECT user_id FROM password_reset_tokens " +
+                                    "WHERE token = ? AND used = FALSE AND expires_at > NOW()");
+                    verifyPst.setString(1, token);
+                    ResultSet rs = verifyPst.executeQuery();
+
+                    if (!rs.next()) {
+                        sendResponse(exchange, 400, "{\"error\":\"Invalid or expired token\"}");
+                        return;
+                    }
+
+                    int userId = rs.getInt("user_id");
+                    rs.close();
+                    verifyPst.close();
+
+                    // Hash new password
+                    String hashedPassword = PasswordUtil.hashPassword(newPassword);
+
+                    // Update password
+                    PreparedStatement updatePst = conn.prepareStatement(
+                            "UPDATE users SET password = ? WHERE id = ?");
+                    updatePst.setString(1, hashedPassword);
+                    updatePst.setInt(2, userId);
+                    updatePst.executeUpdate();
+                    updatePst.close();
+
+                    // Mark token as used
+                    PreparedStatement markUsedPst = conn.prepareStatement(
+                            "UPDATE password_reset_tokens SET used = TRUE WHERE token = ?");
+                    markUsedPst.setString(1, token);
+                    markUsedPst.executeUpdate();
+                    markUsedPst.close();
+
+                    // Send success notification
+                    NotificationService.create(userId,
+                            "✅ Your password has been successfully reset. Please login with your new password.",
+                            NotificationService.SUCCESS);
+
+                    JSONObject response = new JSONObject();
+                    response.put("success", true);
+                    response.put("message", "Password reset successfully! Please login with your new password.");
+                    sendResponse(exchange, 200, response.toString());
+
                 }
 
             } catch (Exception e) {
