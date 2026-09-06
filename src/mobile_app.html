@@ -1743,7 +1743,7 @@
 </header>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:flex; flex-direction:column; justify-content:center; min-height:100vh; padding:30px 24px;">
+<div id="loginScreen">
     <div class="logo-large">◈ SUPREME <span>MONEY</span></div>
     <div class="subtitle">Your Financial Freedom Starts Here</div>
     <div class="error-message" id="loginError">Invalid username or password</div>
@@ -1759,30 +1759,8 @@
     <div class="auth-link">
         Don't have an account? <a href="#" onclick="showRegister()">Create one</a>
     </div>
-    <div class="auth-link" style="margin-top:8px;">
-        <a href="#" onclick="showForgotPassword()" style="color: var(--amber);">🔐 Forgot Password?</a>
-    </div>
 </div>
-<!-- FORGOT PASSWORD SCREEN -->
-<div id="forgotPasswordScreen" style="display:none; padding: 30px 24px; min-height: 100vh;">
-    <div class="logo-large" style="font-size: 22px;">🔐 RESET <span>PASSWORD</span></div>
-    <div class="subtitle">Enter your username OR email to reset your password</div>
 
-    <div id="resetError" class="error-message" style="display:none;"></div>
-    <div id="resetSuccess" style="display:none; background: var(--bg-secondary); color: var(--text-primary); padding: 16px; border-radius: 10px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-    </div>
-
-    <div class="form-group">
-        <label>Username or Email</label>
-        <input type="text" id="resetIdentifier" placeholder="Enter your username or email">
-    </div>
-
-    <button class="btn btn-primary" onclick="requestPasswordReset()">🔑 GENERATE RESET LINK</button>
-
-    <div class="auth-link" style="margin-top:16px;">
-        <a href="#" onclick="showLogin()">← Back to Login</a>
-    </div>
-</div>
 <!-- REGISTER SCREEN -->
 <div id="registerScreen" style="display:none; padding: 30px 24px; min-height: 100vh;">
     <div class="logo-large" style="font-size: 22px;">◈ CREATE <span>ACCOUNT</span></div>
@@ -3246,40 +3224,68 @@ async function handleLogin() {
         }
     }
 
-   // ============================================================
-// SINGLE DOMContentLoaded - MERGED AND FIXED
-// ============================================================
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Supreme Money Coach App Loading...');
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') handleLogin();
+        });
+        document.getElementById('loginUsername').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+        });
+        document.getElementById('regPassword').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') handleRegister();
+        });
+        document.getElementById('chatInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        });
 
-    // ============================================================
-    // CHECK FOR LOGOUT STATE
-    // ============================================================
-    if (sessionStorage.getItem('_logoutInProgress') === 'true') {
-        sessionStorage.removeItem('_logoutInProgress');
-        console.log('🔄 Logout state cleared, showing login');
-        showLogin();
-        return;
-    }
+        document.getElementById('addMembersChamaSelect').addEventListener('change', function() {
+            if (this.value) {
+                selectedChamaId = parseInt(this.value);
+            } else {
+                selectedChamaId = null;
+            }
+        });
 
-    // ============================================================
-    // CHECK FOR RESET TOKEN IN URL FIRST
-    // ============================================================
-    checkForResetToken();
+        document.getElementById('pendingChamaSelect').addEventListener('change', function() {
+            if (this.value) {
+                selectedPendingChamaId = parseInt(this.value);
+                loadPendingRequests(selectedPendingChamaId);
+            } else {
+                selectedPendingChamaId = null;
+                document.getElementById('pendingRequestsList').innerHTML = `
+                    <div style="text-align:center; padding:20px; color:var(--text-secondary);">
+                        Select a Chama to view pending requests
+                    </div>
+                `;
+            }
+        });
 
-    // ============================================================
-    // RESTORE SESSION
-    // ============================================================
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+        const modal = document.getElementById('changePasswordModal');
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeChangePassword();
+            }
+        });
 
-    if (token && user) {
-        try {
-            currentToken = token;
-            currentUser = JSON.parse(user);
+        // Setup date inputs
+        const today = new Date().toISOString().split('T')[0];
+        const currentMonth = today.substring(0, 7);
+        document.getElementById('expenseDateInput').value = today;
+        document.getElementById('budgetMonthSelect').value = currentMonth;
+        document.getElementById('budgetMonth').textContent = new Date().toLocaleDateString('en-KE', { month: 'long',
+            year: 'numeric' });
+        document.getElementById('budgetMonthFull').textContent = new Date().toLocaleDateString('en-KE', { month: 'long',
+            year: 'numeric' });
 
-            // ✅ Only show app if NOT in password reset flow
-            if (!sessionStorage.getItem('_resetInProgress')) {
+        loadCategories();
+
+        const token = localStorage.getItem('token');
+        const user = localStorage.getItem('user');
+
+        if (token && user) {
+            try {
+                currentToken = token;
+                currentUser = JSON.parse(user);
                 showApp();
                 loadDashboard();
                 loadSavings();
@@ -3287,97 +3293,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadExpenses();
                 loadBudgets();
                 loadBudgetItems();
-                loadCategories();
-                loadNotifications();
-            } else {
-                showLogin();
+            } catch (e) {
+                console.error('Error restoring session:', e);
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
             }
-        } catch (e) {
-            console.error('Error restoring session:', e);
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            showLogin();
-        }
-    } else {
-        showLogin();
-    }
-
-    // ============================================================
-    // EVENT LISTENERS - ONLY ONCE
-    // ============================================================
-    document.getElementById('loginPassword').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') handleLogin();
-    });
-    document.getElementById('loginUsername').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') document.getElementById('loginPassword').focus();
-    });
-    document.getElementById('regPassword').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') handleRegister();
-    });
-    document.getElementById('chatInput').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') sendChatMessage();
-    });
-
-    document.getElementById('addMembersChamaSelect').addEventListener('change', function() {
-        if (this.value) {
-            selectedChamaId = parseInt(this.value);
-        } else {
-            selectedChamaId = null;
         }
     });
-
-    document.getElementById('pendingChamaSelect').addEventListener('change', function() {
-        if (this.value) {
-            selectedPendingChamaId = parseInt(this.value);
-            loadPendingRequests(selectedPendingChamaId);
-        } else {
-            selectedPendingChamaId = null;
-            document.getElementById('pendingRequestsList').innerHTML = `
-                <div style="text-align:center; padding:20px; color:var(--text-secondary);">
-                    Select a Chama to view pending requests
-                </div>
-            `;
-        }
-    });
-
-    const modal = document.getElementById('changePasswordModal');
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeChangePassword();
-        }
-    });
-
-    // ============================================================
-    // SETUP DATE INPUTS
-    // ============================================================
-    const today = new Date().toISOString().split('T')[0];
-    const currentMonth = today.substring(0, 7);
-    document.getElementById('expenseDateInput').value = today;
-    document.getElementById('budgetMonthSelect').value = currentMonth;
-    document.getElementById('budgetMonth').textContent = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
-    document.getElementById('budgetMonthFull').textContent = new Date().toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
-
-    loadCategories();
-
-    // ============================================================
-    // AUTO-REFRESH NOTIFICATIONS (only if logged in)
-    // ============================================================
-    if (token) {
-        setTimeout(function() {
-            if (currentUser && !sessionStorage.getItem('_resetInProgress')) {
-                loadNotifications();
-            }
-        }, 1000);
-    }
-
-    setInterval(function() {
-        if (currentToken && currentUser && !sessionStorage.getItem('_resetInProgress')) {
-            loadNotifications();
-        }
-    }, 30000);
-
-    console.log('✅ Supreme Money Coach App Loaded Successfully!');
-});
 
     // ============================================================
     // APP INITIALIZATION
@@ -3408,7 +3330,27 @@ document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
         }
     }
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('registerScreen').style.display = 'none';
+    document.getElementById('appHeader').style.display = 'flex';
+    document.getElementById('bottomNav').style.display = 'flex';
 
+    if (currentUser) {
+        const username = currentUser.username || currentUser.fullname;
+        document.getElementById('headerUsername').textContent = username;
+        document.getElementById('sidebarUserName').textContent = currentUser.fullname || currentUser.username;
+
+        // Set the avatar letter
+        const initial = username ? username.charAt(0).toUpperCase() : 'U';
+        document.getElementById('headerAvatar').textContent = initial;
+
+        // Load profile photo for avatar
+        loadProfilePhotoForAvatar();
+    }
+
+    showScreen('dashboard');
+}
 
 // New function to load profile photo in avatar
 async function loadProfilePhotoForAvatar() {
@@ -4831,28 +4773,6 @@ async function recordPaymentChama(chamaId) {
         loadLeaderChamas();
         showScreen('addMembers');
     }
-    function showApp() {
-    // Only show app if user is logged in
-    if (!currentUser) {
-        showLogin();
-        return;
-    }
-
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.getElementById('appHeader').style.display = 'flex';
-    document.getElementById('bottomNav').style.display = 'flex';
-
-    const username = currentUser.username || currentUser.fullname;
-    document.getElementById('headerUsername').textContent = username;
-    document.getElementById('sidebarUserName').textContent = currentUser.fullname || currentUser.username;
-
-    const initial = username ? username.charAt(0).toUpperCase() : 'U';
-    document.getElementById('headerAvatar').textContent = initial;
-
-    loadProfilePhotoForAvatar();
-    showScreen('dashboard');
-}
 
     async function loadLeaderChamas() {
         const select = document.getElementById('addMembersChamaSelect');
@@ -7807,212 +7727,6 @@ function updateExpenseChart(expenses) {
             cutout: '65%'
         }
     });
-}
-// ============================================================
-// FORGOT PASSWORD & PASSWORD RESET
-// ============================================================
-
-function showForgotPassword() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('forgotPasswordScreen').style.display = 'block';
-    document.getElementById('resetError').style.display = 'none';
-    document.getElementById('resetSuccess').style.display = 'none';
-    document.getElementById('resetIdentifier').value = '';
-}
-
-function showLogin() {
-    document.getElementById('loginScreen').style.display = 'block';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.getElementById('forgotPasswordScreen').style.display = 'none';
-}
-
-async function requestPasswordReset() {
-    const identifier = document.getElementById('resetIdentifier').value.trim();
-    const errorEl = document.getElementById('resetError');
-    const successEl = document.getElementById('resetSuccess');
-
-    // Reset displays
-    errorEl.style.display = 'none';
-    successEl.style.display = 'none';
-
-    if (!identifier) {
-        errorEl.textContent = '⚠️ Please enter your username or email';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const response = await fetch(`${API_URL}/request-password-reset`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identifier: identifier })
-        });
-
-        const data = await response.json();
-        showLoading(false);
-
-        if (data.success) {
-            successEl.innerHTML = `
-                <div style="text-align:center;">
-                    <div style="font-size:40px; margin-bottom:8px;">📧</div>
-                    <div style="font-size:16px; font-weight:600; color:var(--green);">${data.message}</div>
-                    <div style="font-size:13px; color:var(--text-secondary); margin-top:8px;">
-                        Check your email for the reset link.
-                    </div>
-                    <button class="btn btn-secondary" style="margin-top:12px; width:auto; padding:8px 24px;"
-                            onclick="showLogin()">
-                        ← Back to Login
-                    </button>
-                </div>
-            `;
-            successEl.style.display = 'block';
-            document.getElementById('resetIdentifier').value = '';
-        } else {
-            errorEl.textContent = data.error || '❌ Failed to send reset link';
-            errorEl.style.display = 'block';
-        }
-    } catch (error) {
-        showLoading(false);
-        errorEl.textContent = '❌ Network error: ' + error.message;
-        errorEl.style.display = 'block';
-        console.error('Password reset error:', error);
-    }
-}
-
-function checkForResetToken() {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-
-    if (token) {
-        console.log('🔑 Reset token found in URL:', token);
-        sessionStorage.setItem('_resetInProgress', 'true');
-        sessionStorage.setItem('_resetToken', token);
-
-        // Show reset password form
-        showResetPasswordForm(token);
-    }
-}
-
-function showResetPasswordForm(token) {
-    // Hide login and show reset form
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('forgotPasswordScreen').style.display = 'none';
-    document.getElementById('registerScreen').style.display = 'none';
-
-    // Create reset password form if it doesn't exist
-    let resetForm = document.getElementById('resetPasswordForm');
-    if (!resetForm) {
-        resetForm = document.createElement('div');
-        resetForm.id = 'resetPasswordForm';
-        resetForm.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 30px 24px;
-        `;
-        resetForm.innerHTML = `
-            <div class="logo-large" style="font-size:22px;">🔐 RESET <span>PASSWORD</span></div>
-            <div class="subtitle">Enter your new password</div>
-
-            <div id="resetPasswordError" class="error-message" style="display:none;"></div>
-
-            <div class="form-group">
-                <label>New Password</label>
-                <input type="password" id="resetNewPassword" placeholder="Min 6 characters">
-            </div>
-            <div class="form-group">
-                <label>Confirm Password</label>
-                <input type="password" id="resetConfirmNewPassword" placeholder="Confirm your password">
-            </div>
-
-            <button class="btn btn-primary" onclick="handlePasswordReset()">✅ RESET PASSWORD</button>
-
-            <div class="auth-link" style="margin-top:16px;">
-                <a href="#" onclick="showLogin()">← Back to Login</a>
-            </div>
-        `;
-        document.body.appendChild(resetForm);
-    }
-
-    resetForm.style.display = 'flex';
-    document.getElementById('resetNewPassword').value = '';
-    document.getElementById('resetConfirmNewPassword').value = '';
-    document.getElementById('resetPasswordError').style.display = 'none';
-}
-
-async function handlePasswordReset() {
-    const newPassword = document.getElementById('resetNewPassword').value.trim();
-    const confirmPassword = document.getElementById('resetConfirmNewPassword').value.trim();
-    const errorEl = document.getElementById('resetPasswordError');
-    const token = sessionStorage.getItem('_resetToken');
-
-    errorEl.style.display = 'none';
-
-    if (!newPassword || !confirmPassword) {
-        errorEl.textContent = '⚠️ Please fill in all fields';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (newPassword.length < 6) {
-        errorEl.textContent = '⚠️ Password must be at least 6 characters';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (newPassword !== confirmPassword) {
-        errorEl.textContent = '⚠️ Passwords do not match';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (!token) {
-        errorEl.textContent = '❌ Reset token not found. Please request a new reset link.';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const response = await fetch(`${API_URL}/reset-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token: token,
-                new_password: newPassword
-            })
-        });
-
-        const data = await response.json();
-        showLoading(false);
-
-        if (data.success) {
-            alert('✅ Password reset successfully!\n\nYou can now login with your new password.');
-            sessionStorage.removeItem('_resetInProgress');
-            sessionStorage.removeItem('_resetToken');
-
-            // Remove the reset form
-            const resetForm = document.getElementById('resetPasswordForm');
-            if (resetForm) resetForm.style.display = 'none';
-
-            showLogin();
-
-            // Clear URL parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } else {
-            errorEl.textContent = '❌ ' + (data.error || 'Failed to reset password');
-            errorEl.style.display = 'block';
-        }
-    } catch (error) {
-        showLoading(false);
-        errorEl.textContent = '❌ Network error: ' + error.message;
-        errorEl.style.display = 'block';
-        console.error('Password reset error:', error);
-    }
 }
 
     // ============================================================
