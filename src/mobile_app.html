@@ -1759,53 +1759,6 @@
     <div class="auth-link">
         Don't have an account? <a href="#" onclick="showRegister()">Create one</a>
     </div>
-    <div class="auth-link" style="margin-top:8px;">
-        <a href="#" onclick="showForgotPassword()" style="color: var(--amber);">🔐 Forgot Password?</a>
-    </div>
-</div>
-<!-- FORGOT PASSWORD SCREEN -->
-<div id="forgotPasswordScreen" style="display:none; padding: 30px 24px; min-height: 100vh;">
-    <div class="logo-large" style="font-size: 22px;">🔐 RESET <span>PASSWORD</span></div>
-    <div class="subtitle">Enter your username, email, or phone number</div>
-
-    <div id="resetError" class="error-message" style="display:none;"></div>
-    <div id="resetSuccess" style="display:none; background: var(--green); color: white; padding: 12px; border-radius: 10px; margin-bottom: 16px; text-align:center;">
-        ✅ Password reset link sent! Check your email.
-    </div>
-
-    <div class="form-group">
-        <label>Username, Email, or Phone</label>
-        <input type="text" id="resetIdentifier" placeholder="Enter your username, email, or phone">
-    </div>
-
-    <button class="btn btn-primary" onclick="requestPasswordReset()">📧 SEND RESET LINK</button>
-
-    <div class="auth-link" style="margin-top:16px;">
-        <a href="#" onclick="showLogin()">← Back to Login</a>
-    </div>
-</div>
-
-<!-- RESET PASSWORD SCREEN -->
-<div id="resetPasswordScreen" style="display:none; padding: 30px 24px; min-height: 100vh;">
-    <div class="logo-large" style="font-size: 22px;">🔐 NEW <span>PASSWORD</span></div>
-    <div class="subtitle">Enter your new password</div>
-
-    <div id="resetPasswordError" class="error-message" style="display:none;"></div>
-
-    <div class="form-group">
-        <label>New Password</label>
-        <input type="password" id="resetNewPassword" placeholder="Min 6 characters">
-    </div>
-    <div class="form-group">
-        <label>Confirm Password</label>
-        <input type="password" id="resetConfirmPassword" placeholder="Confirm your password">
-    </div>
-
-    <button class="btn btn-primary" onclick="resetPassword()">✓ RESET PASSWORD</button>
-
-    <div class="auth-link" style="margin-top:16px;">
-        <a href="#" onclick="showLogin()">← Back to Login</a>
-    </div>
 </div>
 
 <!-- REGISTER SCREEN -->
@@ -7483,172 +7436,6 @@ function renderBudgetCategories(budgets) {
             console.error('Update budget item error:', error);
         }
     }
-    // ============================================================
-// PASSWORD RESET FUNCTIONS
-// ============================================================
-
-function showForgotPassword() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.getElementById('forgotPasswordScreen').style.display = 'block';
-    document.getElementById('resetPasswordScreen').style.display = 'none';
-    document.getElementById('resetError').style.display = 'none';
-    document.getElementById('resetSuccess').style.display = 'none';
-    document.getElementById('resetIdentifier').value = '';
-}
-
-function showResetPassword(token) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('registerScreen').style.display = 'none';
-    document.getElementById('forgotPasswordScreen').style.display = 'none';
-    document.getElementById('resetPasswordScreen').style.display = 'block';
-    document.getElementById('resetPasswordError').style.display = 'none';
-    document.getElementById('resetNewPassword').value = '';
-    document.getElementById('resetConfirmPassword').value = '';
-
-    // Store token for password reset
-    window._resetToken = token;
-}
-
-async function requestPasswordReset() {
-    const identifier = document.getElementById('resetIdentifier').value.trim();
-    const errorEl = document.getElementById('resetError');
-    const successEl = document.getElementById('resetSuccess');
-
-    errorEl.style.display = 'none';
-    successEl.style.display = 'none';
-
-    if (!identifier) {
-        errorEl.textContent = '⚠️ Please enter your username, email, or phone number';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const response = await fetch(`${API_URL}/password/request-reset`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                identifier: identifier
-            })
-        });
-
-        const data = await response.json();
-        showLoading(false);
-
-        if (data.success) {
-            successEl.textContent = '✅ ' + data.message;
-            successEl.style.display = 'block';
-            document.getElementById('resetIdentifier').value = '';
-
-            // Show login button after success
-            setTimeout(() => {
-                showLogin();
-            }, 3000);
-        } else {
-            errorEl.textContent = '❌ ' + (data.error || 'Failed to send reset link');
-            errorEl.style.display = 'block';
-        }
-    } catch (error) {
-        showLoading(false);
-        errorEl.textContent = '❌ Network error: ' + error.message;
-        errorEl.style.display = 'block';
-        console.error('Request reset error:', error);
-    }
-}
-
-async function resetPassword() {
-    const newPassword = document.getElementById('resetNewPassword').value.trim();
-    const confirmPassword = document.getElementById('resetConfirmPassword').value.trim();
-    const errorEl = document.getElementById('resetPasswordError');
-    const token = window._resetToken;
-
-    errorEl.style.display = 'none';
-
-    if (!newPassword || !confirmPassword) {
-        errorEl.textContent = '⚠️ Please fill in all fields';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (newPassword.length < 6) {
-        errorEl.textContent = '⚠️ Password must be at least 6 characters';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (newPassword !== confirmPassword) {
-        errorEl.textContent = '⚠️ Passwords do not match';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    if (!token) {
-        errorEl.textContent = '❌ Invalid or expired reset token. Please request a new one.';
-        errorEl.style.display = 'block';
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const response = await fetch(`${API_URL}/password/reset`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                token: token,
-                new_password: newPassword
-            })
-        });
-
-        const data = await response.json();
-        showLoading(false);
-
-        if (data.success) {
-            alert('✅ ' + data.message);
-            window._resetToken = null;
-            showLogin();
-            document.getElementById('loginPassword').value = '';
-        } else {
-            errorEl.textContent = '❌ ' + (data.error || 'Failed to reset password');
-            errorEl.style.display = 'block';
-        }
-    } catch (error) {
-        showLoading(false);
-        errorEl.textContent = '❌ Network error: ' + error.message;
-        errorEl.style.display = 'block';
-        console.error('Reset password error:', error);
-    }
-}
-
-// Check URL for reset token on page load
-function checkForResetToken() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-        // Verify token
-        fetch(`${API_URL}/password/verify-token?token=${token}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.valid) {
-                    showResetPassword(token);
-                } else {
-                    alert('❌ Invalid or expired reset link. Please request a new one.');
-                    showLogin();
-                }
-            })
-            .catch(() => {
-                alert('❌ Error verifying reset link. Please try again.');
-                showLogin();
-            });
-    }
-}
 
     // Delete Budget Item
     async function deleteBudgetItem(id) {
@@ -7941,6 +7728,13 @@ function updateExpenseChart(expenses) {
         }
     });
 }
+
+    // ============================================================
+    // INITIALIZE APP
+    // ============================================================
+ // ============================================================
+// INITIALIZE APP
+// ============================================================
 // ============================================================
 // INITIALIZE APP
 // ============================================================
