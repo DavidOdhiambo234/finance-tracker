@@ -5607,23 +5607,22 @@ public class MobileApiServer {
                     return false;
                 }
 
-                String json = String.format("""
-            {
-                "personalizations": [
-                    {
-                        "to": [{"email": "%s"}],
-                        "subject": "🔐 Password Reset Request - Supreme Money Coach"
-                    }
-                ],
-                "from": {"email": "no-reply@suprememoneycoach.com", "name": "Supreme Money Coach"},
-                "content": [
-                    {
-                        "type": "text/html",
-                        "value": "<html><body style='font-family:Arial;background:#0a1628;color:#e0e8f0;padding:20px;'><div style='max-width:600px;margin:0 auto;background:#142337;padding:30px;border-radius:16px;border:1px solid #2a3a55;'><h1 style='color:#ffc107;text-align:center;'>💰 Supreme Money Coach</h1><h2 style='color:#00a86b;'>🔐 Password Reset Request</h2><p>Hello <strong>%s</strong>,</p><p>Click the link below to reset your password:</p><div style='text-align:center;margin:30px 0;'><a href='%s' style='background:#00a86b;color:white;padding:14px 28px;text-decoration:none;border-radius:10px;font-weight:bold;'>🔐 Reset Password</a></div><p>Or copy this link: <br><span style='background:#0a1628;padding:10px;border-radius:8px;word-break:break-all;color:#17a2b8;font-size:12px;'>%s</span></p><p style='font-size:12px;color:#8899bb;'>This link expires in 24 hours.</p><hr style='border-color:#2a3a55;'><p style='font-size:12px;color:#8899bb;text-align:center;'>© Supreme Money Coach - Your Path to Financial Freedom</p></div></body></html>"
-                    }
-                ]
-            }
-            """, email, name, resetLink, resetLink);
+                // ✅ FIX: Use string concatenation instead of text blocks
+                String json = "{"
+                        + "\"personalizations\": ["
+                        + "{"
+                        + "\"to\": [{\"email\": \"" + email + "\"}],"
+                        + "\"subject\": \"🔐 Password Reset Request - Supreme Money Coach\""
+                        + "}"
+                        + "],"
+                        + "\"from\": {\"email\": \"no-reply@suprememoneycoach.com\", \"name\": \"Supreme Money Coach\"},"
+                        + "\"content\": ["
+                        + "{"
+                        + "\"type\": \"text/html\","
+                        + "\"value\": \"<html><body style='font-family:Arial;background:#0a1628;color:#e0e8f0;padding:20px;'><div style='max-width:600px;margin:0 auto;background:#142337;padding:30px;border-radius:16px;border:1px solid #2a3a55;'><h1 style='color:#ffc107;text-align:center;'>💰 Supreme Money Coach</h1><h2 style='color:#00a86b;'>🔐 Password Reset Request</h2><p>Hello <strong>" + name + "</strong>,</p><p>Click the link below to reset your password:</p><div style='text-align:center;margin:30px 0;'><a href='" + resetLink + "' style='background:#00a86b;color:white;padding:14px 28px;text-decoration:none;border-radius:10px;font-weight:bold;'>🔐 Reset Password</a></div><p>Or copy this link: <br><span style='background:#0a1628;padding:10px;border-radius:8px;word-break:break-all;color:#17a2b8;font-size:12px;'>" + resetLink + "</span></p><p style='font-size:12px;color:#8899bb;'>This link expires in 24 hours.</p><hr style='border-color:#2a3a55;'><p style='font-size:12px;color:#8899bb;text-align:center;'>© Supreme Money Coach - Your Path to Financial Freedom</p></div></body></html>\""
+                        + "}"
+                        + "]"
+                        + "}";
 
                 java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL("https://api.sendgrid.com/v3/mail/send").openConnection();
                 conn.setRequestMethod("POST");
@@ -5639,12 +5638,6 @@ public class MobileApiServer {
                     return true;
                 } else {
                     System.err.println("❌ SendGrid error: " + responseCode);
-                    // Read error response
-                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        System.err.println(line);
-                    }
                     return false;
                 }
 
