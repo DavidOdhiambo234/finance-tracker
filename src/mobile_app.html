@@ -2870,6 +2870,20 @@
 </div>
 
 <script>
+    // Capacitor plugins for native features
+let Filesystem = null;
+let Share = null;
+
+// Detect Capacitor and load plugins
+if (window.Capacitor) {
+    try {
+        Filesystem = window.Capacitor.Plugins.Filesystem;
+        Share = window.Capacitor.Plugins.Share;
+        console.log('✅ Capacitor plugins loaded');
+    } catch (e) {
+        console.log('⚠️ Running in browser, using web fallbacks');
+    }
+}
     // ============================================================
     // CONFIGURATION
     // ============================================================
@@ -6094,71 +6108,107 @@ function showReportDialog(reportText, chamaName) {
     });
 }
 
- function downloadReport(chamaName) {
+ async function downloadReport(chamaName) {
     const overlay = document.querySelector('div[data-report]');
     if (!overlay) {
-        showToast('❌ No report data found');
+        alert('❌ No report available');
         return;
     }
 
-    // Get the report text
-    let reportText = overlay.dataset.report;
-    if (!reportText || reportText.trim().length === 0) {
-        const body = overlay.querySelector('div[style*="font-family"]');
-        if (body) {
-            reportText = body.textContent;
+    const reportText = overlay.dataset.report;
+    const name = overlay.dataset.chamaName || 'Chama_Report';
+    const fileName = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_Report_${new Date().toISOString().slice(0,10)}.txt`;
+
+    // If Capacitor (mobile app) is available, use native file system
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        try {
+            showToast('💾 Saving report...');
+
+            // Check if Filesystem plugin is available
+            const Filesystem = window.Capacitor.Plugins.Filesystem;
+            const Share = window.Capacitor.Plugins.Share;
+
+            if (!Filesystem) {
+                throw new Error('Filesystem plugin not available');
+            }
+
+            // Convert text to base64 (required by Capacitor)
+            const base64Data = btoa(unescape(encodeURIComponent(reportText)));
+
+            // Write file to Documents directory
+            const result = await Filesystem.writeFile({
+                path: fileName,
+                data: base64Data,
+                directory: 'DOCUMENTS',
+                encoding: 'base64'
+            });
+
+            console.log('✅ File saved:', result.uri);
+
+            // Show share dialog so user can save it anywhere
+            if (Share) {
+                await Share.share({
+                    title: 'Chama Report',
+                    text: `Financial Report: ${name}`,
+                    url: result.uri,
+                    dialogTitle: 'Save or Share Report'
+                });
+            }
+
+            showToast('✅ Report saved to Documents folder');
+
+        } catch (error) {
+            console.error('❌ Native download failed:', error);
+            // Fall back to share with text content
+            try {
+                const Share = window.Capacitor.Plugins.Share;
+                if (Share) {
+                    await Share.share({
+                        title: 'Chama Report',
+                        text: reportText,
+                        dialogTitle: 'Share Report'
+                    });
+                    showToast('✅ Report shared');
+                    return;
+                }
+            } catch (shareErr) {
+                console.error('❌ Share also failed:', shareErr);
+            }
+            alert(`❌ Could not save report: ${error.message}`);
         }
-    }
-
-    if (!reportText || reportText.trim().length === 0) {
-        showToast('❌ Report data is empty');
         return;
     }
 
-    // Get the name
-    const name = overlay.dataset.chamaName || chamaName || 'Chama_Report';
-    const cleanName = name.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'Chama_Report';
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const fileName = `${cleanName}_Report_${dateStr}.txt`;
-
-    console.log('📄 Downloading:', fileName);
-    console.log('📄 Report size:', reportText.length, 'characters');
-
+    // ============================================================
+    // Web fallback (browser)
+    // ============================================================
     try {
         const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
-
-        if (blob.size === 0) {
-            showToast('❌ Report is empty (0 bytes)');
-            return;
-        }
-
-        // ✅ FIX: REMOVE the File System API - it's causing the "Save cancelled" issue
-        // Just use the standard download method for all browsers
-
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
-        a.style.display = 'none';
         document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-        // Use a small delay to ensure the DOM is ready
-        setTimeout(() => {
-            a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 200);
-        }, 100);
-
-        showToast(`✅ Downloading: ${fileName}`);
-
+        const msg = document.createElement('div');
+        msg.style.cssText = `
+            position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+            background:var(--green); color:white; padding:12px 24px;
+            border-radius:10px; z-index:1001; font-weight:600;
+            animation: fadeIn 0.3s ease;
+        `;
+        msg.textContent = '✅ Report downloaded successfully!';
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 3000);
     } catch (error) {
-        console.error('Download error:', error);
-        showToast('❌ Download failed: ' + error.message);
-        textareaFallback(reportText, fileName);
+        console.error('❌ Web download failed:', error);
+        alert(`❌ Could not download report: ${error.message}`);
     }
 }
+
 function textareaFallback(data, fileName) {
     if (!data || data.trim().length === 0) {
         showToast('❌ No data to save');
