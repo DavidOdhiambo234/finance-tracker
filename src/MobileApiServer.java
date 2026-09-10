@@ -3705,11 +3705,20 @@ public class MobileApiServer {
     private static JSONArray getChamaContributionsFromDb(int chamaId) {
         JSONArray contributions = new JSONArray();
         try (Connection conn = SecureDatabaseConnection.connect()) {
+            // Use LEFT JOINs to include both registered and simple members
             PreparedStatement pst = conn.prepareStatement(
                     "SELECT c.amount, c.contribution_date, c.payment_method, " +
-                            "COALESCE(u.fullname, u.username) as member_name " +
-                            "FROM chama_contributions c JOIN users u ON c.user_id = u.id " +
-                            "WHERE c.chama_id = ? ORDER BY c.contribution_date DESC LIMIT 20");
+                            "COALESCE(u.fullname, u.username, s.fullname, 'Unknown') as member_name, " +
+                            "CASE " +
+                            "  WHEN c.user_id IS NOT NULL THEN 'REGISTERED' " +
+                            "  WHEN c.simple_member_id IS NOT NULL THEN 'SIMPLE' " +
+                            "  ELSE 'UNKNOWN' " +
+                            "END as member_type " +
+                            "FROM chama_contributions c " +
+                            "LEFT JOIN users u ON c.user_id = u.id " +
+                            "LEFT JOIN chama_simple_members s ON c.simple_member_id = s.id " +
+                            "WHERE c.chama_id = ? " +
+                            "ORDER BY c.contribution_date DESC, c.id DESC LIMIT 20");
             pst.setInt(1, chamaId);
             ResultSet rs = pst.executeQuery();
 
@@ -3719,7 +3728,7 @@ public class MobileApiServer {
                 contrib.put("member_name", rs.getString("member_name"));
                 contrib.put("payment_method", rs.getString("payment_method"));
                 contrib.put("contribution_date", rs.getString("contribution_date"));
-                contrib.put("type", "REGISTERED");
+                contrib.put("type", rs.getString("member_type"));
                 contributions.put(contrib);
             }
             rs.close();
@@ -3777,11 +3786,13 @@ public class MobileApiServer {
 
         // ✅ FIX: Format contribution_date in EAT timezone
         PreparedStatement contribPst = conn.prepareStatement(
-                "SELECT c.amount, " +
-                        "DATE_FORMAT(CONVERT_TZ(c.contribution_date, '+00:00', '+03:00'), '%Y-%m-%d %H:%i:%s') as contribution_date, " +
-                        "c.payment_method, COALESCE(u.fullname, u.username) as member_name " +
-                        "FROM chama_contributions c JOIN users u ON c.user_id = u.id " +
-                        "WHERE c.chama_id = ? AND c.status = 'CONFIRMED' ORDER BY c.contribution_date DESC LIMIT 50");
+                "SELECT c.amount, c.contribution_date, c.payment_method, " +
+                        "COALESCE(u.fullname, u.username, s.fullname, 'Unknown') as member_name " +
+                        "FROM chama_contributions c " +
+                        "LEFT JOIN users u ON c.user_id = u.id " +
+                        "LEFT JOIN chama_simple_members s ON c.simple_member_id = s.id " +
+                        "WHERE c.chama_id = ? AND c.status = 'CONFIRMED' " +
+                        "ORDER BY c.contribution_date DESC LIMIT 50");
         contribPst.setInt(1, chamaId);
         ResultSet contribRs = contribPst.executeQuery();
 
