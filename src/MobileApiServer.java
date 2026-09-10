@@ -3581,22 +3581,40 @@ public class MobileApiServer {
         return chamas;
     }
 
+    // ============================================================
+// MEMBER COUNT - INCLUDES REGISTERED + SIMPLE MEMBERS
+// ============================================================
     private static int getMemberCountFromDb(int chamaId) {
-        int count = 0;
+        int totalCount = 0;
         try (Connection conn = SecureDatabaseConnection.connect()) {
+            // Count approved registered members
             PreparedStatement pst = conn.prepareStatement(
                     "SELECT COUNT(*) FROM chama_members WHERE chama_id = ? AND status = 'APPROVED'");
             pst.setInt(1, chamaId);
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
-                count = rs.getInt(1);
+                totalCount = rs.getInt(1);
             }
             rs.close();
             pst.close();
+
+            // Count simple (manually added) members
+            PreparedStatement simplePst = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM chama_simple_members WHERE chama_id = ?");
+            simplePst.setInt(1, chamaId);
+            ResultSet simpleRs = simplePst.executeQuery();
+            if (simpleRs.next()) {
+                totalCount += simpleRs.getInt(1);
+            }
+            simpleRs.close();
+            simplePst.close();
+
+            System.out.println("👥 Chama " + chamaId + " member count: " + totalCount);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return count;
+        return totalCount;
     }
 
     private static JSONObject getChamaDetailsFromDb(int chamaId, int userId) {
