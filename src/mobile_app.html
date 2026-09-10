@@ -87,10 +87,11 @@
             margin-bottom: 16px;
         }
 
-        .sidebar .sidebar-header .logo {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--amber);
+      .sidebar .sidebar-header .logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--amber);
+    white-space: nowrap;
         }
 
         .sidebar .sidebar-header .logo span {
@@ -186,11 +187,13 @@
             z-index: 100;
         }
 
-        .app-header .logo {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--amber);
-        }
+     .app-header .logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+     }
 
         .app-header .logo span {
             color: var(--green);
@@ -1669,7 +1672,7 @@
     <button class="sidebar-close" onclick="closeSidebar()">✖</button>
 
     <div class="sidebar-header">
-        <div class="logo">SUPREME <span>MONEY</span></div>
+        <div class="logo">SUPREME <span>MONEY COACH</span></div>
         <div class="user-name" id="sidebarUserName">User</div>
     </div>
 
@@ -1730,7 +1733,7 @@
 <header class="app-header" id="appHeader" style="display:none;">
     <div class="header-left">
         <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <div class="logo">SUPREME <span>MONEY</span></div>
+        <div class="logo">SUPREME <span>MONEY COACH</span></div>
     </div>
     <div class="header-right">
         <span class="username" id="headerUsername">User</span>
