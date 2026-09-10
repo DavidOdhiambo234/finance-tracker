@@ -659,7 +659,14 @@ public class MobileApiServer {
                     obj.put("name", chama.get("group_name"));
                     obj.put("role", chama.get("role"));
                     obj.put("status", chama.get("status"));
-                    obj.put("total_goal", chama.get("total_goal"));
+
+                    double totalGoal = (Double) chama.get("total_goal");
+                    double totalCollected = (Double) chama.get("total_collected");
+                    double progress = totalGoal > 0 ? (totalCollected / totalGoal) * 100 : 0;
+
+                    obj.put("total_goal", totalGoal);
+                    obj.put("total_collected", totalCollected);
+                    obj.put("progress", Math.min(progress, 100));  // ✅ ADD THIS
                     obj.put("member_count", getMemberCountFromDb((Integer) chama.get("id")));
                     chamaArray.put(obj);
                 }
@@ -3559,7 +3566,9 @@ public class MobileApiServer {
         try (Connection conn = SecureDatabaseConnection.connect();
              PreparedStatement pst = conn.prepareStatement(
                      "SELECT g.id, g.group_name, g.group_code, g.total_goal, g.status as group_status, " +
-                             "cm.role, cm.status as member_status " +
+                             "cm.role, cm.status as member_status, " +
+                             "COALESCE((SELECT SUM(amount) FROM chama_contributions " +
+                             "          WHERE chama_id = g.id AND status = 'CONFIRMED'), 0) as total_collected " +
                              "FROM chama_members cm INNER JOIN chama_groups g ON cm.chama_id = g.id " +
                              "WHERE cm.user_id = ? ORDER BY cm.join_date DESC")) {
             pst.setInt(1, userId);
@@ -3573,6 +3582,7 @@ public class MobileApiServer {
                 chama.put("total_goal", rs.getDouble("total_goal"));
                 chama.put("role", rs.getString("role"));
                 chama.put("status", rs.getString("member_status"));
+                chama.put("total_collected", rs.getDouble("total_collected"));
                 chamas.add(chama);
             }
         } catch (SQLException e) {
