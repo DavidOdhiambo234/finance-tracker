@@ -4601,6 +4601,9 @@ public class MobileApiServer {
     // ============================================================
 // DELETE BUDGET HANDLER
 // ============================================================
+    // ============================================================
+// DELETE BUDGET HANDLER - FIXED
+// ============================================================
     static class DeleteBudgetHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -4624,38 +4627,79 @@ public class MobileApiServer {
                 JSONObject request = readRequestBody(exchange);
                 int budgetId = request.getInt("budget_id");
 
-                try (Connection conn = SecureDatabaseConnection.connect()) {
-                    // Delete budget items first
-                    PreparedStatement deleteItems = conn.prepareStatement(
-                            "DELETE FROM budget_items WHERE budget_id = ? AND user_id = ?"
-                    );
-                    deleteItems.setInt(1, budgetId);
-                    deleteItems.setInt(2, userId);
-                    deleteItems.executeUpdate();
-                    deleteItems.close();
+                System.out.println("🗑️ Delete budget request: budget_id=" + budgetId + ", user_id=" + userId);
 
-                    // Delete budget
-                    PreparedStatement pst = conn.prepareStatement(
-                            "DELETE FROM budgets WHERE id = ? AND user_id = ?"
-                    );
-                    pst.setInt(1, budgetId);
-                    pst.setInt(2, userId);
-                    int deleted = pst.executeUpdate();
-                    pst.close();
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    conn.setAutoCommit(false);
+
+                    // Verify budget belongs to user
+                    PreparedStatement checkPst = conn.prepareStatement(
+                            "SELECT id FROM budgets WHERE id = ? AND user_id = ?");
+                    checkPst.setInt(1, budgetId);
+                    checkPst.setInt(2, userId);
+                    ResultSet checkRs = checkPst.executeQuery();
+
+                    if (!checkRs.next()) {
+                        checkRs.close();
+                        checkPst.close();
+                        conn.rollback();
+                        sendResponse(exchange, 404, "{\"error\":\"Budget not found\"}");
+                        return;
+                    }
+                    checkRs.close();
+                    checkPst.close();
+
+                    // 1. Delete budget_item_expenses links (child of budget_items)
+                    PreparedStatement delLinks = conn.prepareStatement(
+                            "DELETE bie FROM budget_item_expenses bie " +
+                                    "INNER JOIN budget_items bi ON bie.budget_item_id = bi.id " +
+                                    "WHERE bi.budget_id = ?");
+                    delLinks.setInt(1, budgetId);
+                    delLinks.executeUpdate();
+                    delLinks.close();
+
+                    // 2. Delete budget_items (children of budget)
+                    PreparedStatement delItems = conn.prepareStatement(
+                            "DELETE FROM budget_items WHERE budget_id = ? AND user_id = ?");
+                    delItems.setInt(1, budgetId);
+                    delItems.setInt(2, userId);
+                    delItems.executeUpdate();
+                    delItems.close();
+
+                    // 3. Delete the budget itself
+                    PreparedStatement delBudget = conn.prepareStatement(
+                            "DELETE FROM budgets WHERE id = ? AND user_id = ?");
+                    delBudget.setInt(1, budgetId);
+                    delBudget.setInt(2, userId);
+                    int deleted = delBudget.executeUpdate();
+                    delBudget.close();
+
+                    conn.commit();
 
                     JSONObject response = new JSONObject();
                     response.put("success", deleted > 0);
                     response.put("message", deleted > 0 ? "Budget deleted successfully" : "Budget not found");
                     sendResponse(exchange, 200, response.toString());
+                    System.out.println("✅ Budget " + budgetId + " deleted");
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    // Sanitize error message for JSON safety
+                    String safeMsg = e.getMessage() != null
+                            ? e.getMessage().replace("\"", "'").replace("\n", " ").replace("\\", "/")
+                            : "Database error";
+                    sendResponse(exchange, 500, "{\"error\":\"" + safeMsg + "\"}");
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
-                sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+                String safeMsg = e.getMessage() != null
+                        ? e.getMessage().replace("\"", "'").replace("\n", " ").replace("\\", "/")
+                        : "Server error";
+                sendResponse(exchange, 500, "{\"error\":\"" + safeMsg + "\"}");
             }
         }
     }
-
     // ============================================================
 // GET BUDGET ITEMS HANDLER
 // ============================================================

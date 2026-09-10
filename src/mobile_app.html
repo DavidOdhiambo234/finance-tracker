@@ -7531,7 +7531,7 @@ function renderBudgetCategories(budgets) {
     }
     // Add this function to delete a budget
 async function deleteBudget(budgetId) {
-    if (!confirm('Delete this budget?')) return;
+    if (!confirm('Delete this budget? This will also delete all items in it.')) return;
 
     showLoading(true);
 
@@ -7545,12 +7545,25 @@ async function deleteBudget(budgetId) {
             body: JSON.stringify({ budget_id: budgetId })
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('📥 Delete budget response:', responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Invalid JSON response:', responseText);
+            showLoading(false);
+            showToast('❌ Server error. Please try again.');
+            return;
+        }
+
         showLoading(false);
 
         if (data.success) {
             showToast('✅ Budget deleted');
             loadBudgets();
+            loadBudgetItems();
             loadExpenses();
         } else {
             showToast('❌ Failed to delete budget: ' + (data.error || 'Unknown error'));
