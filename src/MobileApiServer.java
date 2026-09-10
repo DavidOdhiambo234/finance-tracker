@@ -727,6 +727,9 @@ public class MobileApiServer {
     // ============================================================
     // CONTRIBUTE HANDLER - ONLY LEADER
     // ============================================================
+    // ============================================================
+// CONTRIBUTE HANDLER - SUPPORTS REGISTERED & SIMPLE MEMBERS
+// ============================================================
     static class ContributeHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -749,9 +752,15 @@ public class MobileApiServer {
 
                 JSONObject request = readRequestBody(exchange);
                 int chamaId = request.getInt("chama_id");
-                int memberUserId = request.getInt("user_id");
+                int memberId = request.getInt("user_id");
                 double amount = request.getDouble("amount");
                 String method = request.optString("payment_method", "MPESA");
+                String memberType = request.optString("member_type", "REGISTERED");
+
+                System.out.println("📤 Payment request: chama=" + chamaId +
+                        ", member=" + memberId +
+                        ", type=" + memberType +
+                        ", amount=" + amount);
 
                 if (amount <= 0) {
                     sendResponse(exchange, 400, "{\"error\":\"Amount must be greater than 0\"}");
@@ -759,6 +768,7 @@ public class MobileApiServer {
                 }
 
                 try (Connection conn = SecureDatabaseConnection.connect()) {
+                    // 1. Verify the logged-in user is the leader
                     PreparedStatement checkPst = conn.prepareStatement(
                             "SELECT leader_id, group_name FROM chama_groups WHERE id = ?");
                     checkPst.setInt(1, chamaId);
@@ -779,33 +789,49 @@ public class MobileApiServer {
                     checkRs.close();
                     checkPst.close();
 
-                    PreparedStatement memberCheck = conn.prepareStatement(
-                            "SELECT status FROM chama_members WHERE chama_id = ? AND user_id = ?");
-                    memberCheck.setInt(1, chamaId);
-                    memberCheck.setInt(2, memberUserId);
-                    ResultSet memberRs = memberCheck.executeQuery();
-
+                    // 2. Determine member type and validate
                     boolean isMember = false;
-                    if (memberRs.next()) {
-                        String status = memberRs.getString("status");
-                        if ("APPROVED".equals(status)) {
-                            isMember = true;
-                        }
-                    }
-                    memberRs.close();
-                    memberCheck.close();
+                    String memberName = "Unknown";
+                    Integer registeredUserId = null;
+                    Integer simpleMemberId = null;
 
-                    if (!isMember) {
-                        PreparedStatement simpleCheck = conn.prepareStatement(
-                                "SELECT id FROM chama_simple_members WHERE chama_id = ? AND phone_number = (SELECT phone_number FROM users WHERE id = ?)");
-                        simpleCheck.setInt(1, chamaId);
-                        simpleCheck.setInt(2, memberUserId);
-                        ResultSet simpleRs = simpleCheck.executeQuery();
+                    if ("SIMPLE".equalsIgnoreCase(memberType)) {
+                        // Check simple members table
+                        PreparedStatement simplePst = conn.prepareStatement(
+                                "SELECT id, fullname FROM chama_simple_members WHERE id = ? AND chama_id = ?");
+                        simplePst.setInt(1, memberId);
+                        simplePst.setInt(2, chamaId);
+                        ResultSet simpleRs = simplePst.executeQuery();
+
                         if (simpleRs.next()) {
                             isMember = true;
+                            memberName = simpleRs.getString("fullname");
+                            simpleMemberId = simpleRs.getInt("id");
+                            System.out.println("✅ Found SIMPLE member: " + memberName);
+                        } else {
+                            System.out.println("❌ SIMPLE member not found with id=" + memberId);
                         }
                         simpleRs.close();
-                        simpleCheck.close();
+                        simplePst.close();
+                    } else {
+                        // Check registered members
+                        PreparedStatement memberCheck = conn.prepareStatement(
+                                "SELECT status FROM chama_members WHERE chama_id = ? AND user_id = ?");
+                        memberCheck.setInt(1, chamaId);
+                        memberCheck.setInt(2, memberId);
+                        ResultSet memberRs = memberCheck.executeQuery();
+
+                        if (memberRs.next()) {
+                            String status = memberRs.getString("status");
+                            if ("APPROVED".equals(status)) {
+                                isMember = true;
+                                registeredUserId = memberId;
+                                memberName = getUserName(memberId);
+                                System.out.println("✅ Found REGISTERED member: " + memberName);
+                            }
+                        }
+                        memberRs.close();
+                        memberCheck.close();
                     }
 
                     if (!isMember) {
@@ -813,11 +839,36 @@ public class MobileApiServer {
                         return;
                     }
 
-                    boolean success = recordContribution(chamaId, memberUserId, amount, method, userId);
+                    // 3. Record the contribution
+                    PreparedStatement pst;
+                    if (simpleMemberId != null) {
+                        // Simple member - insert with NULL user_id, use simple_member_id
+                        pst = conn.prepareStatement(
+                                "INSERT INTO chama_contributions " +
+                                        "(chama_id, user_id, simple_member_id, amount, payment_method, recorded_by, contribution_date, status) " +
+                                        "VALUES (?, NULL, ?, ?, ?, ?, NOW(), 'CONFIRMED')");
+                        pst.setInt(1, chamaId);
+                        pst.setInt(2, simpleMemberId);
+                        pst.setDouble(3, amount);
+                        pst.setString(4, method);
+                        pst.setInt(5, userId);
+                    } else {
+                        // Registered member
+                        pst = conn.prepareStatement(
+                                "INSERT INTO chama_contributions " +
+                                        "(chama_id, user_id, amount, payment_method, recorded_by, contribution_date, status) " +
+                                        "VALUES (?, ?, ?, ?, ?, NOW(), 'CONFIRMED')");
+                        pst.setInt(1, chamaId);
+                        pst.setInt(2, registeredUserId);
+                        pst.setDouble(3, amount);
+                        pst.setString(4, method);
+                        pst.setInt(5, userId);
+                    }
 
-                    if (success) {
-                        String memberName = getUserName(memberUserId);
+                    int inserted = pst.executeUpdate();
+                    pst.close();
 
+                    if (inserted > 0) {
                         JSONObject response = new JSONObject();
                         response.put("success", true);
                         response.put("message", "Payment recorded successfully!");
@@ -825,7 +876,6 @@ public class MobileApiServer {
                         response.put("payment_method", method);
                         response.put("member_name", memberName);
                         response.put("chama_name", groupName);
-
                         sendResponse(exchange, 200, response.toString());
                     } else {
                         sendResponse(exchange, 500, "{\"error\":\"Failed to record payment\"}");
@@ -3608,8 +3658,9 @@ public class MobileApiServer {
     private static JSONArray getChamaMembersFromDb(int chamaId) {
         JSONArray members = new JSONArray();
         try (Connection conn = SecureDatabaseConnection.connect()) {
+            // Get registered members
             PreparedStatement pst = conn.prepareStatement(
-                    "SELECT u.id, COALESCE(u.fullname, u.username) as name, cm.role, cm.join_date " +
+                    "SELECT u.id as user_id, COALESCE(u.fullname, u.username) as name, cm.role, cm.join_date " +
                             "FROM chama_members cm JOIN users u ON cm.user_id = u.id " +
                             "WHERE cm.chama_id = ? AND cm.status = 'APPROVED'");
             pst.setInt(1, chamaId);
@@ -3617,7 +3668,8 @@ public class MobileApiServer {
 
             while (rs.next()) {
                 JSONObject member = new JSONObject();
-                member.put("user_id", rs.getInt("id"));
+                member.put("user_id", rs.getInt("user_id"));
+                member.put("id", rs.getInt("user_id"));
                 member.put("name", rs.getString("name"));
                 member.put("role", rs.getString("role"));
                 member.put("type", "REGISTERED");
@@ -3626,22 +3678,30 @@ public class MobileApiServer {
             rs.close();
             pst.close();
 
-            List<SimpleMember> simpleMembers = ChamaSimpleMemberManager.getSimpleMembers(chamaId);
-            for (SimpleMember sm : simpleMembers) {
+            // Get simple members
+            PreparedStatement simplePst = conn.prepareStatement(
+                    "SELECT id, fullname, phone_number FROM chama_simple_members WHERE chama_id = ?");
+            simplePst.setInt(1, chamaId);
+            ResultSet simpleRs = simplePst.executeQuery();
+
+            while (simpleRs.next()) {
                 JSONObject member = new JSONObject();
-                member.put("user_id", sm.getId());
-                member.put("name", sm.getFullname());
+                member.put("user_id", simpleRs.getInt("id"));
+                member.put("id", simpleRs.getInt("id"));
+                member.put("name", simpleRs.getString("fullname"));
+                member.put("phone_number", simpleRs.getString("phone_number"));
                 member.put("role", "MEMBER");
                 member.put("type", "SIMPLE");
                 members.put(member);
             }
+            simpleRs.close();
+            simplePst.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return members;
     }
-
     private static JSONArray getChamaContributionsFromDb(int chamaId) {
         JSONArray contributions = new JSONArray();
         try (Connection conn = SecureDatabaseConnection.connect()) {
