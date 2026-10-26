@@ -536,6 +536,7 @@ public class MobileApiServer {
     // FORGOT / RESET PASSWORD (one-time code sent by email)
     // ============================================================
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final int RESET_TTL_MINUTES = 10;       // code lifetime
     private static final int RESET_MAX_ATTEMPTS = 5;       // wrong guesses allowed per code
     private static final int RESET_MAX_PER_HOUR = 5;       // codes per account per hour
@@ -545,7 +546,7 @@ public class MobileApiServer {
         try (Connection conn = SecureDatabaseConnection.connect();
              Statement st = conn.createStatement()) {
             st.executeUpdate(
-                    "CREATE TABLE IF NOT EXISTS password_resets (" +
+                    "CREATE TABLE IF NOT EXISTS password_reset_codes (" +
                             "id INT AUTO_INCREMENT PRIMARY KEY, " +
                             "user_id INT NOT NULL, " +
                             "code_hash CHAR(64) NOT NULL, " +
@@ -553,11 +554,11 @@ public class MobileApiServer {
                             "attempts INT NOT NULL DEFAULT 0, " +
                             "used TINYINT(1) NOT NULL DEFAULT 0, " +
                             "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-                            "INDEX idx_password_resets_user (user_id)" +
+                            "INDEX idx_password_reset_codes_user (user_id)" +
                             ")");
-            System.out.println("✅ password_resets table ready");
+            System.out.println("✅ password_reset_codes table ready");
         } catch (SQLException e) {
-            System.err.println("❌ Could not create password_resets table: " + e.getMessage());
+            System.err.println("❌ Could not create password_reset_codes table: " + e.getMessage());
         }
     }
 
@@ -620,7 +621,7 @@ public class MobileApiServer {
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                     .build();
 
-            HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> res = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() >= 200 && res.statusCode() < 300) {
                 return true;
             }
@@ -686,7 +687,7 @@ public class MobileApiServer {
                     try (PreparedStatement pst = conn.prepareStatement(
                             "SELECT COUNT(*) AS hour_count, " +
                                     "COALESCE(SUM(created_at > (NOW() - INTERVAL " + RESET_COOLDOWN_SECONDS + " SECOND)), 0) AS recent_count " +
-                                    "FROM password_resets WHERE user_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)")) {
+                                    "FROM password_reset_codes WHERE user_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)")) {
                         pst.setInt(1, userId);
                         try (ResultSet rs = pst.executeQuery()) {
                             if (rs.next() && (rs.getInt("hour_count") >= RESET_MAX_PER_HOUR || rs.getInt("recent_count") > 0)) {
@@ -699,14 +700,14 @@ public class MobileApiServer {
 
                     // Invalidate older codes, then store the new one (hashed, never in plain text)
                     try (PreparedStatement pst = conn.prepareStatement(
-                            "UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0")) {
+                            "UPDATE password_reset_codes SET used = 1 WHERE user_id = ? AND used = 0")) {
                         pst.setInt(1, userId);
                         pst.executeUpdate();
                     }
 
                     String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
                     try (PreparedStatement pst = conn.prepareStatement(
-                            "INSERT INTO password_resets (user_id, code_hash, expires_at) " +
+                            "INSERT INTO password_reset_codes (user_id, code_hash, expires_at) " +
                                     "VALUES (?, ?, DATE_ADD(NOW(), INTERVAL " + RESET_TTL_MINUTES + " MINUTE))")) {
                         pst.setInt(1, userId);
                         pst.setString(2, sha256Hex(userId + ":" + code));
@@ -724,7 +725,7 @@ public class MobileApiServer {
                     if (!sendEmail(email, fullname, "Your Supreme Money password reset code", html)) {
                         // Do not reveal the failure to the caller (keeps the reply identical); it is logged above.
                         try (PreparedStatement pst = conn.prepareStatement(
-                                "UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0")) {
+                                "UPDATE password_reset_codes SET used = 1 WHERE user_id = ? AND used = 0")) {
                             pst.setInt(1, userId);
                             pst.executeUpdate();
                         }
@@ -799,7 +800,7 @@ public class MobileApiServer {
 
                         try (PreparedStatement pst = conn.prepareStatement(
                                 "SELECT id, code_hash, attempts, (expires_at > NOW()) AS still_valid " +
-                                        "FROM password_resets WHERE user_id = ? AND used = 0 " +
+                                        "FROM password_reset_codes WHERE user_id = ? AND used = 0 " +
                                         "ORDER BY id DESC LIMIT 1 FOR UPDATE")) {
                             pst.setInt(1, userId);
                             try (ResultSet rs = pst.executeQuery()) {
@@ -820,7 +821,7 @@ public class MobileApiServer {
 
                         if (!stillValid || attempts >= RESET_MAX_ATTEMPTS) {
                             try (PreparedStatement pst = conn.prepareStatement(
-                                    "UPDATE password_resets SET used = 1 WHERE id = ?")) {
+                                    "UPDATE password_reset_codes SET used = 1 WHERE id = ?")) {
                                 pst.setInt(1, resetId);
                                 pst.executeUpdate();
                             }
@@ -836,7 +837,7 @@ public class MobileApiServer {
 
                         if (!match) {
                             try (PreparedStatement pst = conn.prepareStatement(
-                                    "UPDATE password_resets SET attempts = attempts + 1, " +
+                                    "UPDATE password_reset_codes SET attempts = attempts + 1, " +
                                             "used = (attempts + 1 >= " + RESET_MAX_ATTEMPTS + ") WHERE id = ?")) {
                                 pst.setInt(1, resetId);
                                 pst.executeUpdate();
@@ -854,7 +855,7 @@ public class MobileApiServer {
                             pst.executeUpdate();
                         }
                         try (PreparedStatement pst = conn.prepareStatement(
-                                "UPDATE password_resets SET used = 1 WHERE user_id = ?")) {
+                                "UPDATE password_reset_codes SET used = 1 WHERE user_id = ?")) {
                             pst.setInt(1, userId);
                             pst.executeUpdate();
                         }
@@ -4867,12 +4868,12 @@ public class MobileApiServer {
                 try (Connection conn = SecureDatabaseConnection.connect()) {
                     // Get only current month budgets - GROUP BY to avoid duplicates
                     PreparedStatement pst = conn.prepareStatement(
-                            "SELECT b.id, b.category_id, b.amount as budgeted, b.spent, " +
+                            "SELECT MAX(b.id) AS id, b.category_id, MAX(b.amount) AS budgeted, MAX(b.spent) AS spent, " +
                                     "c.category_name, c.icon, c.color, " +
-                                    "(b.spent / b.amount * 100) as percentage " +
+                                    "(MAX(b.spent) / MAX(b.amount) * 100) AS percentage " +
                                     "FROM budgets b JOIN expense_categories c ON b.category_id = c.id " +
                                     "WHERE b.user_id = ? AND b.month_year = ? " +
-                                    "GROUP BY b.category_id " +  // Group by category to avoid duplicates
+                                    "GROUP BY b.category_id, c.category_name, c.icon, c.color " +  // Group by category to avoid duplicates
                                     "ORDER BY c.category_name"
                     );
                     pst.setInt(1, userId);
@@ -6071,7 +6072,7 @@ public class MobileApiServer {
                             "SELECT c.category_name, c.icon, COALESCE(SUM(e.amount), 0) as total_spent " +
                                     "FROM expense_categories c LEFT JOIN expenses e ON c.id = e.category_id AND e.user_id = ? " +
                                     "AND MONTH(e.expense_date) = ? AND YEAR(e.expense_date) = ? " +
-                                    "GROUP BY c.id ORDER BY total_spent DESC LIMIT 5"
+                                    "GROUP BY c.id, c.category_name, c.icon ORDER BY total_spent DESC LIMIT 5"
                     );
                     java.time.LocalDate date = java.time.LocalDate.parse(monthYear);
                     topPst.setInt(1, userId);
