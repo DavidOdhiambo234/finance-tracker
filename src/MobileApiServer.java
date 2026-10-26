@@ -5,6 +5,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -24,6 +30,9 @@ public class MobileApiServer {
 
         server = HttpServer.create(new InetSocketAddress(PORT), 0);
         server.setExecutor(Executors.newCachedThreadPool());
+
+        // Make sure the password reset table exists
+        ensurePasswordResetTable();
 
         // ============================================================
         // AUTH ENDPOINTS
@@ -53,6 +62,8 @@ public class MobileApiServer {
         server.createContext("/api/member/profile", new ProfileHandler());
         server.createContext("/api/member/update", new UpdateProfileHandler());
         server.createContext("/api/user/change-password", new ChangePasswordHandler());
+        server.createContext("/api/auth/forgot-password", new ForgotPasswordHandler());
+        server.createContext("/api/auth/reset-password", new ResetPasswordHandler());
         server.createContext("/api/user/upload-photo", new UploadProfilePhotoHandler());
         server.createContext("/api/user/get-photo", new GetProfilePhotoHandler());
         server.createContext("/api/user/remove-photo", new RemoveProfilePhotoHandler());
@@ -91,7 +102,7 @@ public class MobileApiServer {
         // ============================================================
 
 
-       server.createContext("/api/expenses/budget", new BudgetHandler());
+        server.createContext("/api/expenses/budget", new BudgetHandler());
 
         // ============================================================
         // VIDEO ENDPOINTS
@@ -241,6 +252,8 @@ public class MobileApiServer {
         System.out.println("   POST /api/chama/add-members");
         System.out.println("   POST /api/chama/join");
         System.out.println("   POST /api/user/change-password");
+        System.out.println("   POST /api/auth/forgot-password");
+        System.out.println("   POST /api/auth/reset-password");
         System.out.println("   POST /api/user/upload-photo-base64");
         System.out.println("   GET  /api/user/get-photo");
         System.out.println("   DELETE /api/user/remove-photo");
@@ -520,6 +533,353 @@ public class MobileApiServer {
     }
 
     // ============================================================
+    // FORGOT / RESET PASSWORD (one-time code sent by email)
+    // ============================================================
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int RESET_TTL_MINUTES = 10;       // code lifetime
+    private static final int RESET_MAX_ATTEMPTS = 5;       // wrong guesses allowed per code
+    private static final int RESET_MAX_PER_HOUR = 5;       // codes per account per hour
+    private static final int RESET_COOLDOWN_SECONDS = 60;  // minimum gap between codes
+
+    private static void ensurePasswordResetTable() {
+        try (Connection conn = SecureDatabaseConnection.connect();
+             Statement st = conn.createStatement()) {
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS password_resets (" +
+                            "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                            "user_id INT NOT NULL, " +
+                            "code_hash CHAR(64) NOT NULL, " +
+                            "expires_at DATETIME NOT NULL, " +
+                            "attempts INT NOT NULL DEFAULT 0, " +
+                            "used TINYINT(1) NOT NULL DEFAULT 0, " +
+                            "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+                            "INDEX idx_password_resets_user (user_id)" +
+                            ")");
+            System.out.println("✅ password_resets table ready");
+        } catch (SQLException e) {
+            System.err.println("❌ Could not create password_resets table: " + e.getMessage());
+        }
+    }
+
+    private static String sha256Hex(String input) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    // Sends an email through the Brevo HTTP API (https://www.brevo.com - free plan: 300 emails/day).
+    // An HTTP API is used instead of SMTP because Render blocks outgoing SMTP ports.
+    // Set these environment variables on your host (e.g. Render -> Environment):
+    //   BREVO_API_KEY    - API key from Brevo (SMTP & API -> API Keys)
+    //   MAIL_FROM_EMAIL  - a sender address you verified in Brevo
+    //   MAIL_FROM_NAME   - optional, defaults to "Supreme Money"
+    // For local testing only, set EMAIL_DEV_MODE=true to print the email in the console instead of sending it.
+    private static boolean sendEmail(String toEmail, String toName, String subject, String htmlBody) {
+        String apiKey = System.getenv("BREVO_API_KEY");
+        String fromEmail = System.getenv("MAIL_FROM_EMAIL");
+        String fromName = System.getenv("MAIL_FROM_NAME");
+        if (fromName == null || fromName.isEmpty()) fromName = "Supreme Money";
+
+        if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
+            if ("true".equalsIgnoreCase(System.getenv("EMAIL_DEV_MODE"))) {
+                System.out.println("📧 [EMAIL DEV MODE] to " + toEmail + " | " + subject + " | " + htmlBody);
+                return true;
+            }
+            System.err.println("❌ Email not configured: set BREVO_API_KEY and MAIL_FROM_EMAIL");
+            return false;
+        }
+
+        try {
+            JSONObject sender = new JSONObject();
+            sender.put("name", fromName);
+            sender.put("email", fromEmail);
+
+            JSONObject recipient = new JSONObject();
+            recipient.put("email", toEmail);
+            recipient.put("name", toName);
+            JSONArray to = new JSONArray();
+            to.put(recipient);
+
+            JSONObject payload = new JSONObject();
+            payload.put("sender", sender);
+            payload.put("to", to);
+            payload.put("subject", subject);
+            payload.put("htmlContent", htmlBody);
+
+            HttpRequest req = HttpRequest.newBuilder(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .header("api-key", apiKey)
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
+                    .build();
+
+            HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() >= 200 && res.statusCode() < 300) {
+                return true;
+            }
+            System.err.println("❌ Email provider returned " + res.statusCode() + ": " + res.body());
+            return false;
+        } catch (Exception e) {
+            System.err.println("❌ Email send failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // STEP 1: user enters username + registered email -> we email a 6 digit code.
+    // The reply is always the same whether or not the account exists, so attackers cannot probe for valid usernames.
+    static class ForgotPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            final String genericOk = "{\"success\":true,\"message\":\"If the details match an account, a reset code has been sent to the email address.\"}";
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                String username = request.optString("username", "").trim();
+                String email = request.optString("email", "").trim();
+
+                if (username.isEmpty() || email.isEmpty()) {
+                    sendResponse(exchange, 400, "{\"error\":\"Username and email are required\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    int userId = -1;
+                    String fullname = "";
+                    try (PreparedStatement pst = conn.prepareStatement(
+                            "SELECT id, fullname, email, is_active FROM users WHERE username = ?")) {
+                        pst.setString(1, username);
+                        try (ResultSet rs = pst.executeQuery()) {
+                            String storedEmail = rs.next() ? rs.getString("email") : null;
+                            if (storedEmail != null && !storedEmail.trim().isEmpty()
+                                    && rs.getBoolean("is_active")
+                                    && storedEmail.trim().equalsIgnoreCase(email)) {
+                                userId = rs.getInt("id");
+                                fullname = rs.getString("fullname") != null ? rs.getString("fullname") : username;
+                            }
+                        }
+                    }
+
+                    if (userId < 0) {
+                        System.out.println("⚠️ Password reset requested with non-matching details for: " + username);
+                        sendResponse(exchange, 200, genericOk);
+                        return;
+                    }
+
+                    // Throttle: max codes per hour and a cooldown between codes
+                    try (PreparedStatement pst = conn.prepareStatement(
+                            "SELECT COUNT(*) AS hour_count, " +
+                                    "COALESCE(SUM(created_at > (NOW() - INTERVAL " + RESET_COOLDOWN_SECONDS + " SECOND)), 0) AS recent_count " +
+                                    "FROM password_resets WHERE user_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)")) {
+                        pst.setInt(1, userId);
+                        try (ResultSet rs = pst.executeQuery()) {
+                            if (rs.next() && (rs.getInt("hour_count") >= RESET_MAX_PER_HOUR || rs.getInt("recent_count") > 0)) {
+                                System.out.println("⚠️ Password reset throttled for user ID: " + userId);
+                                sendResponse(exchange, 200, genericOk);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Invalidate older codes, then store the new one (hashed, never in plain text)
+                    try (PreparedStatement pst = conn.prepareStatement(
+                            "UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0")) {
+                        pst.setInt(1, userId);
+                        pst.executeUpdate();
+                    }
+
+                    String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+                    try (PreparedStatement pst = conn.prepareStatement(
+                            "INSERT INTO password_resets (user_id, code_hash, expires_at) " +
+                                    "VALUES (?, ?, DATE_ADD(NOW(), INTERVAL " + RESET_TTL_MINUTES + " MINUTE))")) {
+                        pst.setInt(1, userId);
+                        pst.setString(2, sha256Hex(userId + ":" + code));
+                        pst.executeUpdate();
+                    }
+
+                    String html = "<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:auto\">" +
+                            "<h2 style=\"color:#00a86b\">Supreme Money</h2>" +
+                            "<p>Hello " + fullname.replace("<", "&lt;") + ",</p>" +
+                            "<p>Use this code to reset your password:</p>" +
+                            "<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px\">" + code + "</p>" +
+                            "<p>It expires in " + RESET_TTL_MINUTES + " minutes and can only be used once.</p>" +
+                            "<p style=\"color:#888\">If you did not request this, ignore this email. " +
+                            "Never share this code with anyone.</p></div>";
+                    if (!sendEmail(email, fullname, "Your Supreme Money password reset code", html)) {
+                        // Do not reveal the failure to the caller (keeps the reply identical); it is logged above.
+                        try (PreparedStatement pst = conn.prepareStatement(
+                                "UPDATE password_resets SET used = 1 WHERE user_id = ? AND used = 0")) {
+                            pst.setInt(1, userId);
+                            pst.executeUpdate();
+                        }
+                    } else {
+                        System.out.println("✅ Password reset code sent for user ID: " + userId);
+                    }
+
+                    sendResponse(exchange, 200, genericOk);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"Something went wrong. Please try again.\"}");
+            }
+        }
+    }
+
+    // STEP 2: user enters username + code + new password.
+    static class ResetPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            final String invalidCode = "{\"error\":\"Invalid or expired code\"}";
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                String username = request.optString("username", "").trim();
+                String code = request.optString("code", "").trim();
+                String newPassword = request.optString("new_password", "");
+
+                if (username.isEmpty() || code.isEmpty() || newPassword.isEmpty()) {
+                    sendResponse(exchange, 400, "{\"error\":\"Username, code and new password are required\"}");
+                    return;
+                }
+                if (newPassword.length() < 6) {
+                    sendResponse(exchange, 400, "{\"error\":\"New password must be at least 6 characters\"}");
+                    return;
+                }
+
+                try (Connection conn = SecureDatabaseConnection.connect()) {
+                    int userId = -1;
+                    try (PreparedStatement pst = conn.prepareStatement(
+                            "SELECT id FROM users WHERE username = ? AND is_active = 1")) {
+                        pst.setString(1, username);
+                        try (ResultSet rs = pst.executeQuery()) {
+                            if (rs.next()) {
+                                userId = rs.getInt("id");
+                            }
+                        }
+                    }
+
+                    if (userId < 0) {
+                        sendResponse(exchange, 400, invalidCode);
+                        return;
+                    }
+
+                    conn.setAutoCommit(false);
+                    try {
+                        int resetId = -1;
+                        String storedHash = null;
+                        int attempts = 0;
+                        boolean stillValid = false;
+
+                        try (PreparedStatement pst = conn.prepareStatement(
+                                "SELECT id, code_hash, attempts, (expires_at > NOW()) AS still_valid " +
+                                        "FROM password_resets WHERE user_id = ? AND used = 0 " +
+                                        "ORDER BY id DESC LIMIT 1 FOR UPDATE")) {
+                            pst.setInt(1, userId);
+                            try (ResultSet rs = pst.executeQuery()) {
+                                if (rs.next()) {
+                                    resetId = rs.getInt("id");
+                                    storedHash = rs.getString("code_hash");
+                                    attempts = rs.getInt("attempts");
+                                    stillValid = rs.getBoolean("still_valid");
+                                }
+                            }
+                        }
+
+                        if (resetId < 0) {
+                            conn.rollback();
+                            sendResponse(exchange, 400, invalidCode);
+                            return;
+                        }
+
+                        if (!stillValid || attempts >= RESET_MAX_ATTEMPTS) {
+                            try (PreparedStatement pst = conn.prepareStatement(
+                                    "UPDATE password_resets SET used = 1 WHERE id = ?")) {
+                                pst.setInt(1, resetId);
+                                pst.executeUpdate();
+                            }
+                            conn.commit();
+                            sendResponse(exchange, 400, invalidCode);
+                            return;
+                        }
+
+                        String givenHash = sha256Hex(userId + ":" + code);
+                        boolean match = MessageDigest.isEqual(
+                                storedHash.getBytes(StandardCharsets.UTF_8),
+                                givenHash.getBytes(StandardCharsets.UTF_8));
+
+                        if (!match) {
+                            try (PreparedStatement pst = conn.prepareStatement(
+                                    "UPDATE password_resets SET attempts = attempts + 1, " +
+                                            "used = (attempts + 1 >= " + RESET_MAX_ATTEMPTS + ") WHERE id = ?")) {
+                                pst.setInt(1, resetId);
+                                pst.executeUpdate();
+                            }
+                            conn.commit();
+                            sendResponse(exchange, 400, invalidCode);
+                            return;
+                        }
+
+                        // Code is correct: set the new password and burn every outstanding code for this user
+                        try (PreparedStatement pst = conn.prepareStatement(
+                                "UPDATE users SET password = ? WHERE id = ?")) {
+                            pst.setString(1, PasswordUtil.hashPassword(newPassword));
+                            pst.setInt(2, userId);
+                            pst.executeUpdate();
+                        }
+                        try (PreparedStatement pst = conn.prepareStatement(
+                                "UPDATE password_resets SET used = 1 WHERE user_id = ?")) {
+                            pst.setInt(1, userId);
+                            pst.executeUpdate();
+                        }
+                        conn.commit();
+
+                        System.out.println("✅ Password reset completed for user ID: " + userId);
+                        JSONObject response = new JSONObject();
+                        response.put("success", true);
+                        response.put("message", "Password reset successful. Please login with your new password.");
+                        sendResponse(exchange, 200, response.toString());
+
+                    } catch (Exception inner) {
+                        conn.rollback();
+                        throw inner;
+                    }
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendResponse(exchange, 500, "{\"error\":\"Something went wrong. Please try again.\"}");
+            }
+        }
+    }
+
+    // ============================================================
     // REGISTER HANDLER
     // ============================================================
     static class RegisterHandler implements HttpHandler {
@@ -541,10 +901,15 @@ public class MobileApiServer {
                 String username = request.getString("username");
                 String phone = request.getString("phone_number");
                 String password = request.getString("password");
-                String email = request.optString("email", "");
+                String email = request.optString("email", "").trim();
 
                 if (fullname.isEmpty() || username.isEmpty() || phone.isEmpty() || password.isEmpty()) {
                     sendResponse(exchange, 400, "{\"error\":\"All fields required\"}");
+                    return;
+                }
+
+                if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                    sendResponse(exchange, 400, "{\"error\":\"A valid email address is required\"}");
                     return;
                 }
 
