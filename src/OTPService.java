@@ -1,14 +1,13 @@
 import java.sql.*;
-import java.util.Random;
+import java.security.SecureRandom;
 
 public class OTPService {
 
     private static final int OTP_EXPIRY_MINUTES = 10;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     public static String generateOTP() {
-        Random random = new Random();
-        // Generate 6-digit OTP
-        int otp = 100000 + random.nextInt(900000);
+        int otp = 100000 + RANDOM.nextInt(900000);
         return String.valueOf(otp);
     }
 
@@ -16,7 +15,6 @@ public class OTPService {
         try {
             // Generate OTP
             String otpCode = generateOTP();
-            System.out.println("🔑 Generated OTP for " + email + ": " + otpCode);
 
             // Store OTP in database
             try (Connection conn = SecureDatabaseConnection.connect();
@@ -39,7 +37,6 @@ public class OTPService {
             String htmlBody = EmailService.buildVerificationEmail(username, otpCode);
 
             System.out.println("📧 Sending verification email to: " + email);
-            System.out.println("📝 OTP Code: " + otpCode);
 
             return EmailService.sendEmail(email, subject, htmlBody);
 
@@ -61,7 +58,6 @@ public class OTPService {
 
             // Generate OTP
             String otpCode = generateOTP();
-            System.out.println("🔑 Generated OTP for " + email + " (" + purpose + "): " + otpCode);
 
             // Store OTP in database
             try (Connection conn = SecureDatabaseConnection.connect();
@@ -84,12 +80,89 @@ public class OTPService {
             String htmlBody = EmailService.buildOTPEmail(username, otpCode, purpose);
 
             System.out.println("📧 Sending OTP email to: " + email);
-            System.out.println("📝 OTP Code: " + otpCode);
 
             return EmailService.sendEmail(email, subject, htmlBody);
 
         } catch (Exception e) {
             System.err.println("❌ Error sending OTP: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static boolean sendRegistrationOTP(int userId, String email) {
+        try {
+            String otpCode = generateOTP();
+            try (Connection conn = SecureDatabaseConnection.connect();
+                 PreparedStatement pst = conn.prepareStatement(
+                         "INSERT INTO email_verifications (user_id, email, otp_code, expires_at, purpose) "
+                                 + "VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 'REGISTRATION')")) {
+                pst.setInt(1, userId);
+                pst.setString(2, email);
+                pst.setString(3, otpCode);
+                pst.setInt(4, OTP_EXPIRY_MINUTES);
+                pst.executeUpdate();
+            }
+
+            String username = getUsername(userId);
+            String subject = "Verify Your Email - Supreme Money Coach";
+            String htmlBody = EmailService.buildVerificationEmail(username, otpCode);
+            System.out.println("📧 Sending registration verification email to: " + email);
+            return EmailService.sendEmail(email, subject, htmlBody);
+        } catch (Exception e) {
+            System.err.println("❌ Error sending registration OTP: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static boolean confirmRegistrationOTP(int userId, String otpCode) {
+        try (Connection conn = SecureDatabaseConnection.connect()) {
+            conn.setAutoCommit(false);
+            try {
+                int verificationId;
+                String email;
+                try (PreparedStatement pst = conn.prepareStatement(
+                        "SELECT id, email FROM email_verifications "
+                                + "WHERE user_id = ? AND otp_code = ? AND expires_at > NOW() "
+                                + "AND purpose = 'REGISTRATION' AND used = FALSE "
+                                + "ORDER BY created_at DESC LIMIT 1 FOR UPDATE")) {
+                    pst.setInt(1, userId);
+                    pst.setString(2, otpCode);
+                    try (ResultSet rs = pst.executeQuery()) {
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return false;
+                        }
+                        verificationId = rs.getInt("id");
+                        email = rs.getString("email");
+                    }
+                }
+
+                try (PreparedStatement pst = conn.prepareStatement(
+                        "UPDATE users SET email_verified = TRUE, is_active = TRUE "
+                                + "WHERE id = ? AND email = ?")) {
+                    pst.setInt(1, userId);
+                    pst.setString(2, email);
+                    if (pst.executeUpdate() != 1) {
+                        conn.rollback();
+                        return false;
+                    }
+                }
+
+                try (PreparedStatement pst = conn.prepareStatement(
+                        "UPDATE email_verifications SET used = TRUE WHERE id = ?")) {
+                    pst.setInt(1, verificationId);
+                    pst.executeUpdate();
+                }
+                conn.commit();
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error confirming registration OTP: " + e.getMessage());
             e.printStackTrace();
             return false;
         }

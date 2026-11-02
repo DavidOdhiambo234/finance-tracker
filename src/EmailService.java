@@ -2,76 +2,62 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 
 public class EmailService {
-
-    private static Properties config = new Properties();
-    private static boolean configured = false;
-
-    static {
-        loadConfig();
-    }
-
-    private static void loadConfig() {
-        try (FileInputStream fis = new FileInputStream("config.properties")) {
-            config.load(fis);
-            configured = true;
-            System.out.println("✅ Email configuration loaded successfully");
-        } catch (IOException e) {
-            System.err.println("⚠️ Could not load email config: " + e.getMessage());
-            configured = false;
-        }
-    }
 
     // =====================================================
     // MAIN SEND EMAIL METHOD - Used by NotificationService
     // =====================================================
     public static boolean sendEmail(String toEmail, String subject, String htmlBody) {
-        if (!configured) {
-            System.err.println("⚠️ Email service not configured");
-            return false;
+        String apiKey = configuredValue("BREVO_API_KEY", "brevo.api.key");
+        String fromEmail = configuredValue("MAIL_FROM_EMAIL", "brevo.from.email");
+        String fromName = configuredValue("MAIL_FROM_NAME", "brevo.from.name");
+        if (fromName.isEmpty()) {
+            fromName = "Supreme Money Coach";
         }
-
-        String apiKey = config.getProperty("sendgrid.api.key");
-        if (apiKey == null || apiKey.isEmpty() || apiKey.equals("YOUR_SENDGRID_API_KEY_HERE")) {
-            System.err.println("⚠️ SendGrid API key not set in config.properties");
+        if (apiKey.isEmpty() || fromEmail.isEmpty()) {
+            System.err.println("⚠️ Email service not configured: set BREVO_API_KEY and MAIL_FROM_EMAIL");
             return false;
         }
 
         try {
-            String json = buildSendGridPayload(toEmail, subject, htmlBody);
-
-            URL url = new URL("https://api.sendgrid.com/v3/mail/send");
+            String json = buildBrevoPayload(toEmail, subject, htmlBody, fromEmail, fromName);
+            URL url = new URL("https://api.brevo.com/v3/smtp/email");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setRequestProperty("api-key", apiKey);
+            conn.setRequestProperty("accept", "application/json");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(10000);
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.getBytes(StandardCharsets.UTF_8));
-            }
+            try {
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(json.getBytes(StandardCharsets.UTF_8));
+                }
 
-            int responseCode = conn.getResponseCode();
+                int responseCode = conn.getResponseCode();
+                if (responseCode >= 200 && responseCode < 300) {
+                    System.out.println("✅ Email sent successfully to: " + toEmail);
+                    return true;
+                }
 
-            if (responseCode == 202) {
-                System.out.println("✅ Email sent successfully to: " + toEmail);
-                return true;
-            } else {
-                // Read error response
                 StringBuilder error = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(conn.getErrorStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        error.append(line);
+                InputStream errorStream = conn.getErrorStream();
+                if (errorStream != null) {
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            error.append(line);
+                        }
                     }
                 }
-                System.err.println("❌ SendGrid error (" + responseCode + "): " + error.toString());
+                System.err.println("❌ Brevo error (" + responseCode + "): " + error);
                 return false;
+            } finally {
+                conn.disconnect();
             }
 
         } catch (Exception e) {
@@ -100,44 +86,64 @@ public class EmailService {
                         "</div>" +
                         "</body>" +
                         "</html>",
-                message.replace("\n", "<br>")
+                htmlEscape(message).replace("\n", "<br>")
         );
 
         return sendEmail(toEmail, subject, htmlBody);
     }
 
-    private static String buildSendGridPayload(String toEmail, String subject, String htmlBody) {
-        String fromEmail = config.getProperty("sendgrid.from.email", "davidodhiambo4576@gmail.com");
-        String fromName = config.getProperty("sendgrid.from.name", "Supreme Money Coach");
+    private static String buildBrevoPayload(String toEmail, String subject, String htmlBody,
+                                            String fromEmail, String fromName) {
+        return "{\"sender\":{\"email\":\"" + jsonEscape(fromEmail) + "\",\"name\":\""
+                + jsonEscape(fromName) + "\"},\"to\":[{\"email\":\"" + jsonEscape(toEmail)
+                + "\"}],\"subject\":\"" + jsonEscape(subject) + "\",\"htmlContent\":\""
+                + jsonEscape(htmlBody) + "\"}";
+    }
 
-        String escapedSubject = subject.replace("\"", "\\\"").replace("\n", " ");
-        String escapedBody = htmlBody.replace("\"", "\\\"").replace("\n", "\\n");
+    private static String jsonEscape(String value) {
+        StringBuilder escaped = new StringBuilder(value.length() + 16);
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            switch (character) {
+                case '"': escaped.append("\\\""); break;
+                case '\\': escaped.append("\\\\"); break;
+                case '\b': escaped.append("\\b"); break;
+                case '\f': escaped.append("\\f"); break;
+                case '\n': escaped.append("\\n"); break;
+                case '\r': escaped.append("\\r"); break;
+                case '\t': escaped.append("\\t"); break;
+                default:
+                    if (character < 0x20) {
+                        escaped.append(String.format("\\u%04x", (int) character));
+                    } else {
+                        escaped.append(character);
+                    }
+            }
+        }
+        return escaped.toString();
+    }
 
-        return String.format(
-                "{" +
-                        "  \"personalizations\": [" +
-                        "    {" +
-                        "      \"to\": [{\"email\": \"%s\"}]" +
-                        "    }" +
-                        "  ]," +
-                        "  \"from\": {\"email\": \"%s\", \"name\": \"%s\"}," +
-                        "  \"subject\": \"%s\"," +
-                        "  \"content\": [" +
-                        "    {" +
-                        "      \"type\": \"text/html\"," +
-                        "      \"value\": \"%s\"" +
-                        "    }" +
-                        "  ]" +
-                        "}",
-                toEmail, fromEmail, fromName, escapedSubject, escapedBody
-        );
+    private static String configuredValue(String environmentName, String propertyName) {
+        String environmentValue = System.getenv(environmentName);
+        if (environmentValue != null && !environmentValue.trim().isEmpty()) {
+            return environmentValue.trim();
+        }
+        return ConfigLoader.getProperty(propertyName);
+    }
+
+    private static String htmlEscape(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     // =====================================================
     // EMAIL TEMPLATE BUILDERS
     // =====================================================
     public static String buildVerificationEmail(String username, String otpCode) {
-        String footer = config.getProperty("email.footer", "Supreme Money Coach - Your Financial Intelligence Partner");
+        String footer = ConfigLoader.getProperty("email.footer");
+        if (footer.isEmpty()) {
+            footer = "Supreme Money Coach - Your Financial Intelligence Partner";
+        }
         return String.format(
                 "<!DOCTYPE html>" +
                         "<html>" +
@@ -156,12 +162,15 @@ public class EmailService {
                         "</div>" +
                         "</body>" +
                         "</html>",
-                username, otpCode, footer
+                htmlEscape(username), otpCode, htmlEscape(footer)
         );
     }
 
     public static String buildOTPEmail(String username, String otpCode, String purpose) {
-        String footer = config.getProperty("email.footer", "Supreme Money Coach - Your Financial Intelligence Partner");
+        String footer = ConfigLoader.getProperty("email.footer");
+        if (footer.isEmpty()) {
+            footer = "Supreme Money Coach - Your Financial Intelligence Partner";
+        }
         return String.format(
                 "<!DOCTYPE html>" +
                         "<html>" +
@@ -180,29 +189,22 @@ public class EmailService {
                         "</div>" +
                         "</body>" +
                         "</html>",
-                username, purpose, otpCode, footer
+                htmlEscape(username), htmlEscape(purpose), otpCode, htmlEscape(footer)
         );
     }
 
     // Test method
     public static boolean testEmailConfig() {
-        if (!configured) {
-            System.err.println("❌ Email service not configured");
-            return false;
-        }
-
-        String apiKey = config.getProperty("sendgrid.api.key");
-        if (apiKey == null || apiKey.isEmpty() || apiKey.equals("YOUR_SENDGRID_API_KEY_HERE")) {
-            System.err.println("❌ SendGrid API key not set");
-            System.err.println("Please get your API key from: https://app.sendgrid.com/settings/api_keys");
+        String apiKey = configuredValue("BREVO_API_KEY", "brevo.api.key");
+        String fromEmail = configuredValue("MAIL_FROM_EMAIL", "brevo.from.email");
+        if (apiKey.isEmpty() || fromEmail.isEmpty()) {
+            System.err.println("❌ Brevo is not configured. Set BREVO_API_KEY and MAIL_FROM_EMAIL.");
             return false;
         }
 
         System.out.println("📧 Email Configuration Test:");
-        System.out.println("  Provider: SendGrid");
-        System.out.println("  From Email: " + config.getProperty("sendgrid.from.email"));
-        System.out.println("  From Name: " + config.getProperty("sendgrid.from.name"));
-        System.out.println("  API Key: " + apiKey.substring(0, 10) + "...");
+        System.out.println("  Provider: Brevo");
+        System.out.println("  From Email: " + fromEmail);
         System.out.println("✅ Configuration loaded successfully");
         return true;
     }

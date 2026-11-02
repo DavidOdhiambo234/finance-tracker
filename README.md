@@ -58,3 +58,16 @@ Software design for real-world applications
 **If you like this project**
 
 Give it a ⭐ on GitHub and feel free to fork or contribute!
+
+## Email verification (Brevo)
+
+Desktop registration verifies the supplied email address with a one-time code before activating the account. Configure Brevo with either environment variables or these properties in `config.properties`:
+
+```properties
+brevo.api.key=YOUR_BREVO_API_KEY
+brevo.from.email=YOUR_VERIFIED_SENDER_EMAIL
+brevo.from.name=Supreme Money Coach
+```
+
+Environment variables `BREVO_API_KEY` and `MAIL_FROM_EMAIL` take precedence; `MAIL_FROM_NAME` is optional. Verify the sender address in Brevo before sending. Verification codes expire after 10 minutes.
+The legacy SendGrid settings are not used by the email service.
