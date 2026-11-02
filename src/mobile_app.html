@@ -7,6 +7,8 @@
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
     <style>
         /* ============================================================
            MOBILE APP STYLES - ATM THEME
@@ -108,18 +110,31 @@
             position: absolute;
             top: 12px;
             right: 16px;
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
             background: none;
             border: none;
             color: var(--text-secondary);
-            font-size: 24px;
             cursor: pointer;
+        }
+
+        .sidebar .sidebar-close svg {
+            width: 19px;
+            height: 19px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-width: 1.8;
         }
 
         .sidebar .sidebar-item {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 12px 20px;
+            gap: 13px;
+            min-height: 46px;
+            padding: 10px 20px;
             color: var(--text-secondary);
             text-decoration: none;
             cursor: pointer;
@@ -138,9 +153,22 @@
         }
 
         .sidebar .sidebar-item .icon {
-            font-size: 20px;
-            width: 28px;
-            text-align: center;
+            display: grid;
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            place-items: center;
+        }
+
+        .sidebar .sidebar-item .icon svg {
+            display: block;
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.7;
         }
 
         .sidebar .sidebar-item.active {
@@ -789,6 +817,17 @@
 
         .bottom-nav .nav-item .icon {
             font-size: 20px;
+        }
+
+        .bottom-nav .nav-item .icon svg {
+            display: block;
+            width: 21px;
+            height: 21px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.8;
         }
 
         /* ============================================================
@@ -1693,6 +1732,508 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
         }
+
+        /* ============================================================
+           REACT DASHBOARD REFRESH
+           ============================================================ */
+        body {
+            background:
+                radial-gradient(ellipse at 85% 0%, rgba(0, 168, 107, 0.13), transparent 34rem),
+                var(--bg-primary);
+        }
+
+        .app-header {
+            padding: 14px max(20px, calc((100vw - 760px) / 2));
+            background: rgba(10, 22, 40, 0.92);
+            border-bottom-color: var(--border-color);
+            backdrop-filter: blur(18px);
+        }
+
+        .app-header .logo {
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .app-header .logo span {
+            color: var(--green);
+        }
+
+        .app-header .header-right .username {
+            font-size: 12px;
+        }
+
+        .menu-btn svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-width: 1.8;
+        }
+
+        .app-header .notif-bell svg {
+            display: block;
+            width: 21px;
+            height: 21px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.8;
+        }
+
+        .app-header .header-right .avatar {
+            width: 36px;
+            height: 36px;
+            background-color: var(--green);
+            color: var(--bg-primary);
+            border: 2px solid rgba(0, 168, 107, 0.35);
+        }
+
+        .screen {
+            width: min(100%, 800px);
+            margin: 0 auto;
+            padding: 22px 22px calc(104px + env(safe-area-inset-bottom));
+        }
+
+        #loginScreen {
+            width: min(100%, 440px);
+            margin: 0 auto;
+            padding: 40px 28px;
+        }
+
+        #loginScreen .logo-large {
+            letter-spacing: 1px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            background: rgba(20, 35, 55, 0.9);
+            border-color: rgba(224, 232, 240, 0.12);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.14);
+        }
+
+        .bottom-nav {
+            padding: 9px 0 calc(10px + env(safe-area-inset-bottom));
+            background: rgba(10, 22, 40, 0.96);
+            border-top-color: var(--border-color);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.18);
+        }
+
+        .bottom-nav .nav-item {
+            min-width: 58px;
+            gap: 3px;
+            font-size: 10px;
+        }
+
+        .bottom-nav .nav-item.active {
+            color: var(--green);
+        }
+
+        .dashboard-shell {
+            display: grid;
+            gap: 22px;
+        }
+
+        .dashboard-welcome {
+            padding: 4px 2px 0;
+        }
+
+        .dashboard-welcome .eyebrow,
+        .dashboard-section-heading .eyebrow {
+            color: var(--green);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        .dashboard-welcome h1 {
+            margin-top: 7px;
+            font-size: clamp(26px, 6vw, 34px);
+            line-height: 1.12;
+            letter-spacing: -1px;
+        }
+
+        .dashboard-welcome p {
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .dashboard-hero {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            margin: 0;
+            padding: 24px;
+            border: 1px solid rgba(0, 168, 107, 0.35);
+            border-radius: 24px;
+            background:
+                radial-gradient(circle at 92% 8%, rgba(0, 168, 107, 0.24), transparent 12rem),
+                linear-gradient(135deg, #174838 0%, #142337 58%, #0a1628 100%);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+        }
+
+        .dashboard-hero::after {
+            position: absolute;
+            z-index: -1;
+            right: -48px;
+            bottom: -96px;
+            width: 230px;
+            height: 230px;
+            border: 1px solid rgba(224, 232, 240, 0.12);
+            border-radius: 50%;
+            box-shadow: 0 0 0 26px rgba(224, 232, 240, 0.035), 0 0 0 54px rgba(224, 232, 240, 0.025);
+            content: "";
+        }
+
+        .dashboard-hero .savings-header {
+            align-items: flex-start;
+            margin-bottom: 22px;
+        }
+
+        .dashboard-hero .savings-header .label {
+            color: rgba(224, 232, 240, 0.76);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .dashboard-hero .savings-header .goal-label {
+            padding: 7px 10px;
+            border: 1px solid rgba(224, 232, 240, 0.14);
+            border-radius: 999px;
+            background: rgba(10, 22, 40, 0.35);
+            color: rgba(224, 232, 240, 0.76);
+            font-size: 10px;
+        }
+
+        .dashboard-hero .savings-header .goal-amount {
+            color: var(--text-primary);
+            font-size: 11px;
+        }
+
+        .dashboard-hero .balance-row {
+            display: block;
+            margin-bottom: 18px;
+        }
+
+        .dashboard-hero .balance-row .balance-label {
+            color: rgba(224, 232, 240, 0.68);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.6px;
+        }
+
+        .dashboard-hero .balance-row .balance-amount {
+            display: block;
+            margin-top: 6px;
+            color: var(--text-primary);
+            font-size: clamp(32px, 8vw, 42px);
+            letter-spacing: -1.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-hero .goal-progress .progress-bar {
+            height: 7px;
+            background: rgba(224, 232, 240, 0.2);
+        }
+
+        .dashboard-hero .goal-progress .progress-bar .fill {
+            background: var(--green);
+        }
+
+        .dashboard-hero .goal-progress .progress-text {
+            color: rgba(224, 232, 240, 0.76);
+            font-size: 11px;
+        }
+
+        .dashboard-hero .goal-progress .progress-text .remaining {
+            color: var(--amber);
+        }
+
+        .dashboard-hero .savings-actions {
+            position: relative;
+            z-index: 1;
+            gap: 9px;
+            margin-top: 22px;
+        }
+
+        .dashboard-hero .savings-actions .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-height: 44px;
+            padding: 10px 8px;
+            border: 1px solid rgba(224, 232, 240, 0.14);
+            border-radius: 12px;
+            background: rgba(224, 232, 240, 0.08);
+            color: var(--text-primary) !important;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        .dashboard-hero .savings-actions .btn svg {
+            width: 16px;
+            height: 16px;
+            flex: 0 0 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.9;
+        }
+
+        .dashboard-hero .savings-actions .btn:first-child {
+            border-color: var(--green);
+            background: var(--green);
+            color: #ffffff !important;
+        }
+
+        .dashboard-section-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .dashboard-section-heading h2 {
+            margin-top: 4px;
+            font-size: 18px;
+            letter-spacing: -0.3px;
+        }
+
+        .dashboard-text-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 0;
+            background: transparent;
+            color: var(--green);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .dashboard-text-button svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-width: 1.8;
+        }
+
+        .dashboard-shortcuts {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .dashboard-shortcut {
+            display: flex;
+            min-height: 88px;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 13px 11px;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            background: linear-gradient(150deg, rgba(26, 42, 69, 0.95), rgba(20, 35, 55, 0.95));
+            color: var(--text-primary);
+            text-align: left;
+            cursor: pointer;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .dashboard-shortcut:active {
+            transform: scale(0.97);
+            border-color: rgba(0, 168, 107, 0.55);
+        }
+
+        .dashboard-shortcut .shortcut-icon {
+            display: grid;
+            width: 32px;
+            height: 32px;
+            place-items: center;
+            border-radius: 11px;
+            background: rgba(0, 168, 107, 0.15);
+            color: var(--green);
+        }
+
+        .dashboard-shortcut .shortcut-icon svg {
+            display: block;
+            width: 19px;
+            height: 19px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.8;
+        }
+
+        .dashboard-shortcut .shortcut-label {
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .dashboard-chamas {
+            padding: 17px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background: rgba(20, 35, 55, 0.72);
+        }
+
+        .dashboard-chamas #chamaCards {
+            min-height: 74px;
+        }
+
+        .dashboard-chamas .chama-card {
+            margin: 10px 0 0;
+            border-color: rgba(224, 232, 240, 0.09);
+            border-radius: 14px;
+            background: rgba(26, 42, 69, 0.88);
+        }
+
+        .dashboard-chamas .chama-card .name {
+            color: var(--text-primary);
+        }
+
+        .dashboard-tip {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 15px 16px;
+            border: 1px solid rgba(0, 168, 107, 0.2);
+            border-radius: 17px;
+            background: rgba(0, 168, 107, 0.07);
+        }
+
+        .dashboard-tip .tip-icon {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            place-items: center;
+            border-radius: 11px;
+            background: rgba(0, 168, 107, 0.16);
+            color: var(--green);
+        }
+
+        .dashboard-tip .tip-icon svg {
+            display: block;
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.8;
+        }
+
+        .dashboard-tip strong {
+            display: block;
+            font-size: 12px;
+        }
+
+        .dashboard-tip p {
+            margin-top: 3px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .savings-card,
+        .budget-summary-card,
+        .budget-items-section,
+        .chart-container {
+            border-color: var(--border-color);
+        }
+
+        .chama-card,
+        .notification-item,
+        .modal-content {
+            border-color: var(--border-color);
+        }
+
+        @media (max-width: 480px) {
+            .app-header {
+                padding: 12px 14px;
+            }
+
+            .app-header .header-left {
+                gap: 7px;
+            }
+
+            .app-header .logo {
+                font-size: 10px;
+                letter-spacing: 0.6px;
+            }
+
+            .app-header .header-right {
+                gap: 9px;
+            }
+
+            .app-header .header-right .username {
+                max-width: 78px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .screen {
+                padding: 18px 16px calc(100px + env(safe-area-inset-bottom));
+            }
+
+            .dashboard-shell {
+                gap: 18px;
+            }
+
+            .dashboard-hero {
+                padding: 20px 18px;
+                border-radius: 21px;
+            }
+
+            .dashboard-shortcuts {
+                gap: 8px;
+            }
+
+            .dashboard-shortcut {
+                min-height: 82px;
+                padding: 10px 8px;
+            }
+
+            .dashboard-shortcut .shortcut-label {
+                font-size: 9px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1707,7 +2248,9 @@
 
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
-    <button class="sidebar-close" onclick="closeSidebar()">✖</button>
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+    </button>
 
     <div class="sidebar-header">
         <div class="logo">SUPREME <span>MONEY COACH</span></div>
@@ -1716,69 +2259,71 @@
 
     <div class="sidebar-label">Menu</div>
 
-    <button class="sidebar-item active" onclick="navigateTo('dashboard')">
-        <span class="icon">🏠</span> Dashboard
+    <button class="sidebar-item active" onclick="navigateToSidebar('dashboard')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-7h6v7"></path></svg></span> Dashboard
     </button>
-    <button class="sidebar-item" onclick="navigateTo('chamas')">
-        <span class="icon">👥</span> My Chamas
+    <button class="sidebar-item" onclick="navigateToSidebar('chamas')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> My Chamas
     </button>
-    <button class="sidebar-item" onclick="showCreateChama()">
-        <span class="icon">➕</span> Create Chama
+    <button class="sidebar-item" onclick="navigateToSidebar('createChama')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span> Create Chama
     </button>
-    <button class="sidebar-item" onclick="showJoinChama()">
-        <span class="icon">🔑</span> Join Chama
+    <button class="sidebar-item" onclick="navigateToSidebar('joinChama')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="5"></circle><path d="m11.5 11.5 8-8L22 6l-2 2 2 2-3 3-2-2-2 2"></path></svg></span> Join Chama
     </button>
-    <button class="sidebar-item" onclick="showAddMembers()">
-        <span class="icon">👤</span> Add Members
+    <button class="sidebar-item" onclick="navigateToSidebar('addMembers')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M3 21v-2a6 6 0 0 1 12 0v2M19 8v6M16 11h6"></path></svg></span> Add Members
     </button>
-    <button class="sidebar-item" onclick="showPendingRequests()">
-        <span class="icon">📋</span> Pending Requests
+    <button class="sidebar-item" onclick="navigateToSidebar('pendingRequests')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h11v17H5V4h3zM9 3h6v3H9zM8 11h8M8 15h8M8 18h5"></path></svg></span> Pending Requests
     </button>
-    <button class="sidebar-item" onclick="showFullSavings()">
-        <span class="icon">💰</span> My Savings
+    <button class="sidebar-item" onclick="navigateToSidebar('savings')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h15a2 2 0 0 1 2 2v9H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13M16 12h5M17.5 14.5h.01"></path></svg></span> My Savings
     </button>
-    <button class="sidebar-item" onclick="showDebts()">
-        <span class="icon">💳</span> Debt Reminders
+    <button class="sidebar-item" onclick="navigateToSidebar('debts')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18M7 15h3"></path></svg></span> Debt Reminders
     </button>
-    <button class="sidebar-item" onclick="showExpenses()">
-        <span class="icon">💰</span> Expenses
+    <button class="sidebar-item" onclick="navigateToSidebar('expenses')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h4"></path></svg></span> Expenses
     </button>
-    <button class="sidebar-item" onclick="showBudgetScreen()">
-        <span class="icon">📊</span> Budget Planning
+    <button class="sidebar-item" onclick="navigateToSidebar('budget')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h17M8 16v-4M13 16V8M18 16V5"></path></svg></span> Budget Planning
     </button>
 
     <div class="sidebar-divider"></div>
     <div class="sidebar-label">AI & More</div>
 
-    <button class="sidebar-item" onclick="showAIChat()">
-        <span class="icon">🤖</span> AI Chat
+    <button class="sidebar-item" onclick="navigateToSidebar('aiChat')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="4"></rect><path d="M9 10h.01M15 10h.01M9 14h6M12 5V2M8 22l4-3 4 3"></path></svg></span> AI Chat
     </button>
-    <button class="sidebar-item" onclick="showSavingsInsights()">
-        <span class="icon">💡</span> AI Insights
+    <button class="sidebar-item" onclick="navigateToSidebar('aiInsights')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4M8.2 14.5A7 7 0 1 1 15.8 14.5c-.9.7-1.3 1.4-1.5 2.5h-4.6c-.2-1.1-.6-1.8-1.5-2.5zM12 3v2"></path></svg></span> AI Insights
     </button>
-    <button class="sidebar-item" onclick="showVideos()">
-        <span class="icon">📹</span> Business Videos
+    <button class="sidebar-item" onclick="navigateToSidebar('videos')">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"></rect><path d="m16 10 5-3v10l-5-3z"></path></svg></span> Business Videos
     </button>
 
     <div class="sidebar-divider"></div>
 
-    <button class="sidebar-item" onclick="handleLogout()" style="color:var(--red);">
-        <span class="icon">🚪</span> Logout
+    <button class="sidebar-item" onclick="closeSidebar(); handleLogout();" style="color:var(--red);">
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"></path></svg></span> Logout
     </button>
 </div>
 
 <!-- APP HEADER -->
 <header class="app-header" id="appHeader" style="display:none;">
     <div class="header-left">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
         <div class="logo">SUPREME <span>MONEY COACH</span></div>
     </div>
     <div class="header-right">
         <span class="username" id="headerUsername">User</span>
         <span class="notif-bell" onclick="showNotifications()">
-                🔔
-                <span class="notif-badge" id="headerNotifBadge">0</span>
-            </span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg>
+            <span class="notif-badge" id="headerNotifBadge">0</span>
+        </span>
         <div class="avatar" id="headerAvatar" onclick="showProfile()" style="cursor:pointer;">U</div>
     </div>
 </header>
@@ -1885,39 +2430,33 @@
 
 <!-- DASHBOARD SCREEN -->
 <div id="dashboardScreen" class="screen">
-    <!-- Savings Card -->
-    <div class="savings-card">
-        <div class="savings-header">
-            <span class="label">💰 Total Savings</span>
-            <span class="goal-label">Goal: <span class="goal-amount" id="savingsGoal">Ksh 0</span></span>
-        </div>
-        <div class="balance-row">
-            <span class="balance-label">BALANCE</span>
-            <span class="balance-amount" id="totalSavings">Ksh 0</span>
-        </div>
-        <div class="goal-progress">
-            <div class="progress-bar">
-                <div class="fill" id="progressFill" style="width:0%"></div>
+    <div id="dashboardReactRoot">
+        <div class="savings-card">
+            <div class="savings-header">
+                <span class="label">Total Savings</span>
+                <span class="goal-label">Goal: <span class="goal-amount" id="savingsGoal">Ksh 0</span></span>
             </div>
-            <div class="progress-text">
-                <span id="progressPercent">0%</span>
-                <span class="remaining" id="remainingAmount">Remaining: Ksh 0</span>
+            <div class="balance-row">
+                <span class="balance-label">BALANCE</span>
+                <span class="balance-amount" id="totalSavings">Ksh 0</span>
+            </div>
+            <div class="goal-progress">
+                <div class="progress-bar">
+                    <div class="fill" id="progressFill" style="width:0%"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressPercent">0%</span>
+                    <span class="remaining" id="remainingAmount">Remaining: Ksh 0</span>
+                </div>
+            </div>
+            <div class="savings-actions">
+                <button class="btn btn-primary" onclick="showQuickDeposit()">+ DEPOSIT</button>
+                <button class="btn btn-red" onclick="showQuickWithdraw()">WITHDRAW</button>
+                <button class="btn btn-cyan" onclick="showStatement()">STATEMENT</button>
             </div>
         </div>
-        <div class="savings-actions">
-            <button class="btn btn-primary" onclick="showQuickDeposit()">+ DEPOSIT</button>
-            <button class="btn btn-red" onclick="showQuickWithdraw()">WITHDRAW</button>
-            <button class="btn btn-cyan" onclick="showStatement()">STATEMENT</button>
-        </div>
-    </div>
-
-    <!-- Chama List -->
-    <div id="chamaList">
-        <div style="font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:12px;">
-            📋 Your Chamas
-        </div>
-        <div id="chamaCards">
-            <div class="spinner"></div>
+        <div id="chamaList">
+            <div id="chamaCards"><div class="spinner"></div></div>
         </div>
     </div>
 </div>
@@ -2941,19 +3480,24 @@
 <!-- BOTTOM NAVIGATION -->
 <div class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-item active" onclick="navigateTo('dashboard')">
-        <span class="icon">🏠</span> Home
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-7h6v7"></path></svg></span>
+        <span>Home</span>
     </button>
     <button class="nav-item" onclick="navigateTo('chamas')">
-        <span class="icon">👥</span> Chamas
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+        <span>Chamas</span>
     </button>
     <button class="nav-item" onclick="showExpenses()">
-        <span class="icon">💰</span> Expenses
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v17l-3.5-2L12 21l-3.5-2L5 21zM9 9h6M9 13h6M9 17h3"></path></svg></span>
+        <span>Expenses</span>
     </button>
     <button class="nav-item" onclick="showBudgetScreen()">
-        <span class="icon">📊</span> Budget
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h17M8 16v-4M13 16V8M18 16V5"></path></svg></span>
+        <span>Budget</span>
     </button>
     <button class="nav-item" onclick="showProfile()">
-        <span class="icon">👤</span> Profile
+        <span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10"></path></svg></span>
+        <span>Profile</span>
     </button>
 </div>
 
@@ -8168,6 +8712,141 @@
     // ============================================================
     // END OF JAVASCRIPT - NO EXTRA BRACES
     // ============================================================
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const root = document.getElementById('dashboardReactRoot');
+        if (!root || !window.React || !window.ReactDOM) {
+            console.error('React dashboard could not start because its runtime did not load.');
+            return;
+        }
+
+        const h = React.createElement;
+        const iconPaths = {
+            add: ['M12 5v14M5 12h14'],
+            expense: ['M6 3h12v18l-3-2-3 2-3-2-3 2z', 'M9 8h6M9 12h3'],
+            savings: ['M4 7h15a2 2 0 0 1 2 2v9H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13', 'M16 12h5', 'M17.5 14.5h.01'],
+            debts: ['M4 7h12l-3-3M20 17H8l3 3', 'M18.5 5.5h.01M5.5 18.5h.01'],
+            budget: ['M4 20V4M4 20h17M8 16v-4M13 16V8M18 16V5'],
+            deposit: ['M12 5v14M5 12h14'],
+            withdraw: ['M7 10l5 5 5-5M12 4v11'],
+            statement: ['M7 3h7l4 4v14H7zM14 3v5h5M10 13h5M10 17h5'],
+            sparkle: ['m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z', 'm19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z']
+        };
+
+        function renderIcon(name, className) {
+            return h('svg', {
+                className: className || undefined,
+                viewBox: '0 0 24 24',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: 1.8,
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                'aria-hidden': 'true',
+                focusable: 'false'
+            }, iconPaths[name].map(function(path, index) {
+                return h('path', { d: path, key: index });
+            }));
+        }
+
+        function DashboardApp() {
+            const userName = document.getElementById('headerUsername').textContent.trim() || 'there';
+            const hour = new Date().getHours();
+            const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+            const today = new Date().toLocaleDateString(undefined, {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            return h('div', { className: 'dashboard-shell' },
+                h('section', { className: 'dashboard-welcome' },
+                    h('span', { className: 'eyebrow' }, today),
+                    h('h1', null, greeting + ', ' + userName),
+                    h('p', null, 'A clearer view of your money starts with one small step.')
+                ),
+                h('section', { className: 'savings-card dashboard-hero' },
+                    h('div', { className: 'savings-header' },
+                        h('span', { className: 'label' }, 'TOTAL SAVINGS'),
+                        h('span', { className: 'goal-label' }, 'Goal: ',
+                            h('span', { className: 'goal-amount', id: 'savingsGoal' }, 'Ksh 0')
+                        )
+                    ),
+                    h('div', { className: 'balance-row' },
+                        h('span', { className: 'balance-label' }, 'YOUR BALANCE'),
+                        h('span', { className: 'balance-amount', id: 'totalSavings' }, 'Ksh 0')
+                    ),
+                    h('div', { className: 'goal-progress' },
+                        h('div', { className: 'progress-bar' },
+                            h('div', { className: 'fill', id: 'progressFill', style: { width: '0%' } })
+                        ),
+                        h('div', { className: 'progress-text' },
+                            h('span', { id: 'progressPercent' }, '0%'),
+                            h('span', { className: 'remaining', id: 'remainingAmount' }, 'Remaining: Ksh 0')
+                        )
+                    ),
+                    h('div', { className: 'savings-actions' },
+                        h('button', { className: 'btn btn-primary', onClick: function() { window.showQuickDeposit(); } },
+                            renderIcon('deposit'), 'ADD MONEY'),
+                        h('button', { className: 'btn btn-red', onClick: function() { window.showQuickWithdraw(); } },
+                            renderIcon('withdraw'), 'WITHDRAW'),
+                        h('button', { className: 'btn btn-cyan', onClick: function() { window.showStatement(); } },
+                            renderIcon('statement'), 'STATEMENT')
+                    )
+                ),
+                h('section', { className: 'dashboard-quick-section' },
+                    h('div', { className: 'dashboard-section-heading' },
+                        h('div', null,
+                            h('span', { className: 'eyebrow' }, 'YOUR MONEY TOOLS'),
+                            h('h2', null, 'Quick actions')
+                        )
+                    ),
+                    h('div', { className: 'dashboard-shortcuts' },
+                        [
+                            { icon: 'expense', label: 'Add expense', action: 'showExpenses' },
+                            { icon: 'savings', label: 'My savings', action: 'showFullSavings' },
+                            { icon: 'debts', label: 'Debts', action: 'showDebts' },
+                            { icon: 'budget', label: 'My budget', action: 'showBudgetScreen' }
+                        ].map(function(item) {
+                            return h('button', {
+                                className: 'dashboard-shortcut',
+                                key: item.label,
+                                onClick: function() { window[item.action](); }
+                            },
+                                h('span', { className: 'shortcut-icon' }, renderIcon(item.icon)),
+                                h('span', { className: 'shortcut-label' }, item.label)
+                            );
+                        })
+                    )
+                ),
+                h('section', { className: 'dashboard-chamas' },
+                    h('div', { className: 'dashboard-section-heading' },
+                        h('div', null,
+                            h('span', { className: 'eyebrow' }, 'GROW TOGETHER'),
+                            h('h2', null, 'Your Chamas')
+                        ),
+                        h('button', {
+                            className: 'dashboard-text-button',
+                            onClick: function() { window.showCreateChama(); }
+                        }, renderIcon('add'), 'Create')
+                    ),
+                    h('div', { id: 'chamaList' },
+                        h('div', { id: 'chamaCards' }, h('div', { className: 'spinner' }))
+                    )
+                ),
+                h('aside', { className: 'dashboard-tip' },
+                    h('span', { className: 'tip-icon' }, renderIcon('sparkle')),
+                    h('div', null,
+                        h('strong', null, 'Build your money momentum'),
+                        h('p', null, 'Track a little today. Your future self will thank you.')
+                    )
+                )
+            );
+        }
+
+        ReactDOM.createRoot(root).render(h(DashboardApp));
+    });
 </script>
 </body>
 </html>

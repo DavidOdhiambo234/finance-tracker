@@ -1,0 +1,22 @@
+﻿# ============================================================
+# SUPREME MONEY COACH - CONFIGURATION
+# ============================================================
+
+# Database Configuration
+db.url=jdbc:YOUR_AIVEN_PASSWORD
+db.user=avnadmin
+db.password=YOUR_DATABASE PASSWORD
+
+# Gemini API Configuration
+gemini.api.key=YOUR_KEY
+
+# Email Configuration (SendGrid)
+sendgrid.api.key=YOUR_SENDGRID_API_KEY_HERE
+sendgrid.from.email=davidodhiambo4576@gmail.com
+sendgrid.from.name=Supreme Money Coach
+email.footer=Supreme Money Coach - Your Financial Intelligence Partner
+
+# SMS Configuration (Africa's Talking)
+sms.api.key=YOUR_KEY
+sms.username=Oronjo
+sms.sender.id=20800
