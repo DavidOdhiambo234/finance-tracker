@@ -2414,6 +2414,11 @@
         <label>Email</label>
         <input type="email" id="regEmail" placeholder="e.g., name@example.com (used to reset your password)" autocomplete="email">
     </div>
+    <div class="form-group" id="registrationOtpGroup" style="display:none;">
+        <label>Email verification code</label>
+        <input type="text" id="regOtp" placeholder="Enter the 6-digit code" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+        <button type="button" class="btn-link" id="resendRegistrationOtpBtn" onclick="handleRegistrationResend()">Resend code</button>
+    </div>
     <div class="form-group">
         <label>Password</label>
         <input type="password" id="regPassword" placeholder="Min 6 characters">
@@ -3748,6 +3753,9 @@
     // ============================================================
     // LOGIN / REGISTER
     // ============================================================
+    let pendingRegistrationUserId = null;
+    let registrationResendTimer = null;
+
     function showLogin() {
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none'; document.getElementById('forgotPasswordScreen').style.display = 'none';
@@ -3755,6 +3763,7 @@
 
     function showRegister() {
         document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('forgotPasswordScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'block';
     }
 
@@ -3963,6 +3972,11 @@
         }
     }
     async function handleRegister() {
+        if (pendingRegistrationUserId) {
+            await handleRegistrationVerify();
+            return;
+        }
+
         const fullname = document.getElementById('regFullname').value.trim();
         const username = document.getElementById('regUsername').value.trim();
         const phone = document.getElementById('regPhone').value.trim();
@@ -4009,16 +4023,23 @@
             showLoading(false);
 
             if (data.success) {
-                alert(`✓ Account created successfully!\n\nWelcome, ${fullname}!\nPlease login to continue.`);
-                document.getElementById('regFullname').value = '';
-                document.getElementById('regUsername').value = '';
-                document.getElementById('regPhone').value = '';
-                document.getElementById('regEmail').value = '';
-                document.getElementById('regPassword').value = '';
-                document.getElementById('regConfirmPassword').value = '';
-                showLogin();
-                document.getElementById('loginUsername').value = username;
-                document.getElementById('loginPassword').value = '';
+                pendingRegistrationUserId = data.user_id;
+                document.getElementById('registrationOtpGroup').style.display = 'block';
+                document.getElementById('registerBtn').textContent = '✓ VERIFY EMAIL & CREATE ACCOUNT';
+                ['regFullname', 'regUsername', 'regPhone', 'regEmail',
+                    'regPassword', 'regConfirmPassword'].forEach(id => {
+                    document.getElementById(id).disabled = true;
+                });
+                if (data.email_sent) {
+                    errorEl.textContent = '✓ Verification code sent. Check your inbox and spam folder.';
+                    errorEl.classList.add('show');
+                    startRegistrationResendCountdown(60);
+                    document.getElementById('regOtp').focus();
+                } else {
+                    errorEl.textContent = data.message || 'Account is pending verification. Check Brevo settings, then resend the code.';
+                    errorEl.classList.add('show');
+                    document.getElementById('resendRegistrationOtpBtn').disabled = false;
+                }
             } else {
                 errorEl.textContent = data.error || 'Registration failed';
                 errorEl.classList.add('show');
@@ -4031,6 +4052,108 @@
         }
     }
 
+    function startRegistrationResendCountdown(seconds) {
+        const button = document.getElementById('resendRegistrationOtpBtn');
+        clearInterval(registrationResendTimer);
+        let remaining = seconds;
+        button.disabled = true;
+        button.textContent = `Resend code in ${remaining}s`;
+        registrationResendTimer = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(registrationResendTimer);
+                button.disabled = false;
+                button.textContent = 'Resend code';
+            } else {
+                button.textContent = `Resend code in ${remaining}s`;
+            }
+        }, 1000);
+    }
+
+    async function handleRegistrationResend() {
+        if (!pendingRegistrationUserId) return;
+        const button = document.getElementById('resendRegistrationOtpBtn');
+        const errorEl = document.getElementById('registerError');
+        button.disabled = true;
+        errorEl.classList.remove('show');
+        showLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/auth/resend-registration-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: pendingRegistrationUserId })
+            });
+            const data = await response.json();
+            showLoading(false);
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Could not resend verification code');
+            }
+            errorEl.textContent = '✓ A new verification code was sent to your email.';
+            errorEl.classList.add('show');
+            startRegistrationResendCountdown(60);
+        } catch (error) {
+            showLoading(false);
+            button.disabled = false;
+            button.textContent = 'Resend code';
+            errorEl.textContent = error.message || 'Could not resend verification code';
+            errorEl.classList.add('show');
+        }
+    }
+
+    async function handleRegistrationVerify() {
+        const code = document.getElementById('regOtp').value.trim();
+        const errorEl = document.getElementById('registerError');
+        if (!/^\d{6}$/.test(code)) {
+            errorEl.textContent = 'Enter the 6-digit code sent to your email.';
+            errorEl.classList.add('show');
+            return;
+        }
+
+        showLoading(true);
+        document.getElementById('registerBtn').disabled = true;
+        try {
+            const response = await fetch(`${API_URL}/auth/verify-registration`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: pendingRegistrationUserId, code })
+            });
+            const data = await response.json();
+            showLoading(false);
+            if (!response.ok || !data.success) {
+                errorEl.textContent = data.error || 'Invalid or expired verification code';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            const username = document.getElementById('regUsername').value;
+            clearInterval(registrationResendTimer);
+            pendingRegistrationUserId = null;
+            document.getElementById('registerBtn').disabled = false;
+            ['regFullname', 'regUsername', 'regPhone', 'regEmail',
+                'regPassword', 'regConfirmPassword'].forEach(id => {
+                const field = document.getElementById(id);
+                field.disabled = false;
+                field.value = '';
+            });
+            document.getElementById('regOtp').value = '';
+            document.getElementById('registrationOtpGroup').style.display = 'none';
+            document.getElementById('registerBtn').textContent = '✓ CREATE ACCOUNT';
+            document.getElementById('resendRegistrationOtpBtn').textContent = 'Resend code';
+            document.getElementById('resendRegistrationOtpBtn').disabled = false;
+            showLogin();
+            document.getElementById('loginUsername').value = username;
+            document.getElementById('loginPassword').value = '';
+            alert('✓ Email verified and account created. You can now sign in.');
+        } catch (error) {
+            showLoading(false);
+            errorEl.textContent = error.message || 'Network error. Please try again.';
+            errorEl.classList.add('show');
+            console.error('Registration verification error:', error);
+        } finally {
+            document.getElementById('registerBtn').disabled = false;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loginPassword').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') handleLogin();
@@ -4040,6 +4163,9 @@
         });
         document.getElementById('regPassword').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') handleRegister();
+        });
+        document.getElementById('regOtp').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') handleRegistrationVerify();
         });
         document.getElementById('chatInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') sendChatMessage();

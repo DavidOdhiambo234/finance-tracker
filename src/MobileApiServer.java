@@ -39,6 +39,8 @@ public class MobileApiServer {
         // ============================================================
         server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/register", new RegisterHandler());
+        server.createContext("/api/auth/verify-registration", new VerifyRegistrationHandler());
+        server.createContext("/api/auth/resend-registration-otp", new ResendRegistrationOTPHandler());
 
         // ============================================================
         // CHAMA ENDPOINTS
@@ -536,7 +538,6 @@ public class MobileApiServer {
     // FORGOT / RESET PASSWORD (one-time code sent by email)
     // ============================================================
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final int RESET_TTL_MINUTES = 10;       // code lifetime
     private static final int RESET_MAX_ATTEMPTS = 5;       // wrong guesses allowed per code
     private static final int RESET_MAX_PER_HOUR = 5;       // codes per account per hour
@@ -584,60 +585,7 @@ public class MobileApiServer {
     //   MAIL_FROM_NAME   - optional, defaults to "Supreme Money"
     // For local testing only, set EMAIL_DEV_MODE=true to print the email in the console instead of sending it.
     private static boolean sendEmail(String toEmail, String toName, String subject, String htmlBody) {
-        String apiKey = ConfigLoader.getProperty("brevo.api.key");
-        String fromEmail = System.getenv("MAIL_FROM_EMAIL");
-        if (fromEmail == null || fromEmail.trim().isEmpty()) {
-            fromEmail = ConfigLoader.getProperty("brevo.from.email");
-        }
-        String fromName = System.getenv("MAIL_FROM_NAME");
-        if (fromName == null || fromName.trim().isEmpty()) {
-            fromName = ConfigLoader.getProperty("brevo.from.name");
-        }
-        if (fromName.isEmpty()) fromName = "Supreme Money";
-
-        if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
-            if ("true".equalsIgnoreCase(System.getenv("EMAIL_DEV_MODE"))) {
-                System.out.println("📧 [EMAIL DEV MODE] to " + toEmail + " | " + subject + " | " + htmlBody);
-                return true;
-            }
-            System.err.println("❌ Email not configured: set BREVO_API_KEY and MAIL_FROM_EMAIL");
-            return false;
-        }
-
-        try {
-            JSONObject sender = new JSONObject();
-            sender.put("name", fromName);
-            sender.put("email", fromEmail);
-
-            JSONObject recipient = new JSONObject();
-            recipient.put("email", toEmail);
-            recipient.put("name", toName);
-            JSONArray to = new JSONArray();
-            to.put(recipient);
-
-            JSONObject payload = new JSONObject();
-            payload.put("sender", sender);
-            payload.put("to", to);
-            payload.put("subject", subject);
-            payload.put("htmlContent", htmlBody);
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create("https://api.brevo.com/v3/smtp/email"))
-                    .header("api-key", apiKey)
-                    .header("accept", "application/json")
-                    .header("content-type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
-                    .build();
-
-            HttpResponse<String> res = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() >= 200 && res.statusCode() < 300) {
-                return true;
-            }
-            System.err.println("❌ Email provider returned " + res.statusCode() + ": " + res.body());
-            return false;
-        } catch (Exception e) {
-            System.err.println("❌ Email send failed: " + e.getMessage());
-            return false;
-        }
+        return EmailService.sendEmail(toEmail, subject, htmlBody);
     }
 
     // STEP 1: user enters username + registered email -> we email a 6 digit code.
@@ -905,14 +853,18 @@ public class MobileApiServer {
 
             try {
                 JSONObject request = readRequestBody(exchange);
-                String fullname = request.getString("fullname");
-                String username = request.getString("username");
-                String phone = request.getString("phone_number");
-                String password = request.getString("password");
+                String fullname = request.optString("fullname", "").trim();
+                String username = request.optString("username", "").trim();
+                String phone = request.optString("phone_number", "").trim();
+                String password = request.optString("password", "");
                 String email = request.optString("email", "").trim();
 
                 if (fullname.isEmpty() || username.isEmpty() || phone.isEmpty() || password.isEmpty()) {
                     sendResponse(exchange, 400, "{\"error\":\"All fields required\"}");
+                    return;
+                }
+                if (password.length() < 6) {
+                    sendResponse(exchange, 400, "{\"error\":\"Password must be at least 6 characters\"}");
                     return;
                 }
 
@@ -924,61 +876,64 @@ public class MobileApiServer {
                 String hashedPassword = PasswordUtil.hashPassword(password);
 
                 try (Connection conn = SecureDatabaseConnection.connect()) {
-                    PreparedStatement checkPst = conn.prepareStatement(
-                            "SELECT id FROM users WHERE username = ? OR phone_number = ?");
-                    checkPst.setString(1, username);
-                    checkPst.setString(2, phone);
-                    ResultSet checkRs = checkPst.executeQuery();
-
-                    if (checkRs.next()) {
-                        sendResponse(exchange, 409, "{\"error\":\"Username or phone number already exists\"}");
-                        return;
+                    try (PreparedStatement checkPst = conn.prepareStatement(
+                            "SELECT id FROM users WHERE username = ? OR phone_number = ? "
+                                    + "OR LOWER(email) = LOWER(?) LIMIT 1")) {
+                        checkPst.setString(1, username);
+                        checkPst.setString(2, phone);
+                        checkPst.setString(3, email);
+                        try (ResultSet checkRs = checkPst.executeQuery()) {
+                            if (checkRs.next()) {
+                                sendResponse(exchange, 409,
+                                        "{\"error\":\"Username, phone number, or email is already registered\"}");
+                                return;
+                            }
+                        }
                     }
-                    checkRs.close();
-                    checkPst.close();
 
-                    PreparedStatement pst = conn.prepareStatement(
+                    int userId = 0;
+                    try (PreparedStatement pst = conn.prepareStatement(
                             "INSERT INTO users (" +
                                     "fullname, username, phone_number, email, password, " +
                                     "role, is_admin, is_active, email_verified, phone_verified, " +
                                     "occupation, monthly_income, monthly_expenses, goal_type, risk_level, savings_goal" +
                                     ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            Statement.RETURN_GENERATED_KEYS);
+                            Statement.RETURN_GENERATED_KEYS)) {
+                        pst.setString(1, fullname);
+                        pst.setString(2, username);
+                        pst.setString(3, phone);
+                        pst.setString(4, email);
+                        pst.setString(5, hashedPassword);
+                        pst.setString(6, "USER");
+                        pst.setBoolean(7, false);
+                        pst.setBoolean(8, false);
+                        pst.setBoolean(9, false);
+                        pst.setBoolean(10, false);
+                        pst.setString(11, "Not specified");
+                        pst.setInt(12, 0);
+                        pst.setInt(13, 0);
+                        pst.setString(14, "General");
+                        pst.setString(15, "Medium");
+                        pst.setDouble(16, 15000.00);
 
-                    pst.setString(1, fullname);
-                    pst.setString(2, username);
-                    pst.setString(3, phone);
-                    pst.setString(4, email);
-                    pst.setString(5, hashedPassword);
-                    pst.setString(6, "USER");
-                    pst.setBoolean(7, false);
-                    pst.setBoolean(8, true);
-                    pst.setBoolean(9, false);
-                    pst.setBoolean(10, false);
-                    pst.setString(11, "Not specified");
-                    pst.setInt(12, 0);
-                    pst.setInt(13, 0);
-                    pst.setString(14, "General");
-                    pst.setString(15, "Medium");
-                    pst.setDouble(16, 15000.00);
-
-                    pst.executeUpdate();
-
-                    ResultSet rs = pst.getGeneratedKeys();
-                    int userId = 0;
-                    if (rs.next()) {
-                        userId = rs.getInt(1);
+                        pst.executeUpdate();
+                        try (ResultSet rs = pst.getGeneratedKeys()) {
+                            if (rs.next()) {
+                                userId = rs.getInt(1);
+                            }
+                        }
                     }
-                    rs.close();
-                    pst.close();
 
                     if (userId > 0) {
-                        System.out.println("✅ User registered successfully: " + username + " (ID: " + userId + ")");
+                        boolean emailSent = OTPService.sendRegistrationOTP(userId, email);
 
                         JSONObject response = new JSONObject();
                         response.put("success", true);
                         response.put("user_id", userId);
-                        response.put("message", "Registration successful! Please login.");
+                        response.put("email_sent", emailSent);
+                        response.put("message", emailSent
+                                ? "Verification code sent. Enter it to activate your account."
+                                : "Account pending verification. Use resend after checking the email configuration.");
                         sendResponse(exchange, 201, response.toString());
                     } else {
                         sendResponse(exchange, 500, "{\"error\":\"Failed to create user\"}");
@@ -986,8 +941,9 @@ public class MobileApiServer {
 
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    if (e.getMessage().contains("Duplicate entry")) {
-                        sendResponse(exchange, 409, "{\"error\":\"Username or phone number already exists\"}");
+                    if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                        sendResponse(exchange, 409,
+                                "{\"error\":\"Username, phone number, or email is already registered\"}");
                     } else {
                         sendResponse(exchange, 500, "{\"error\":\"Database error: " + e.getMessage() + "\"}");
                     }
@@ -996,6 +952,95 @@ public class MobileApiServer {
             } catch (Exception e) {
                 e.printStackTrace();
                 sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+            }
+        }
+    }
+
+    static class VerifyRegistrationHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                int userId = request.optInt("user_id", 0);
+                String code = request.optString("code", "").trim();
+                if (userId <= 0 || !code.matches("\\d{6}")) {
+                    sendResponse(exchange, 400, "{\"error\":\"Enter the 6-digit verification code\"}");
+                    return;
+                }
+                if (!OTPService.confirmRegistrationOTP(userId, code)) {
+                    sendResponse(exchange, 400, "{\"error\":\"Invalid or expired verification code\"}");
+                    return;
+                }
+
+                JSONObject response = new JSONObject();
+                response.put("success", true);
+                response.put("message", "Email verified. You can now sign in.");
+                sendResponse(exchange, 200, response.toString());
+            } catch (Exception e) {
+                System.err.println("❌ Registration verification failed: " + e.getMessage());
+                sendResponse(exchange, 500, "{\"error\":\"Could not verify the code. Please try again.\"}");
+            }
+        }
+    }
+
+    static class ResendRegistrationOTPHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
+                return;
+            }
+
+            try {
+                JSONObject request = readRequestBody(exchange);
+                int userId = request.optInt("user_id", 0);
+                if (userId <= 0) {
+                    sendResponse(exchange, 400, "{\"error\":\"Invalid registration\"}");
+                    return;
+                }
+
+                String email = null;
+                try (Connection conn = SecureDatabaseConnection.connect();
+                     PreparedStatement pst = conn.prepareStatement(
+                             "SELECT email FROM users WHERE id = ? AND is_active = FALSE "
+                                     + "AND email_verified = FALSE")) {
+                    pst.setInt(1, userId);
+                    try (ResultSet rs = pst.executeQuery()) {
+                        if (rs.next()) {
+                            email = rs.getString("email");
+                        }
+                    }
+                }
+                if (email == null || email.trim().isEmpty()) {
+                    sendResponse(exchange, 404, "{\"error\":\"Pending registration not found\"}");
+                    return;
+                }
+
+                if (!OTPService.sendRegistrationOTP(userId, email)) {
+                    sendResponse(exchange, 503,
+                            "{\"error\":\"Could not send code. Check Brevo configuration and try again.\"}");
+                    return;
+                }
+                JSONObject response = new JSONObject();
+                response.put("success", true);
+                response.put("message", "A new verification code was sent.");
+                sendResponse(exchange, 200, response.toString());
+            } catch (Exception e) {
+                System.err.println("❌ Could not resend registration OTP: " + e.getMessage());
+                sendResponse(exchange, 500, "{\"error\":\"Could not resend the code. Please try again.\"}");
             }
         }
     }
