@@ -577,16 +577,23 @@ public class MobileApiServer {
 
     // Sends an email through the Brevo HTTP API (https://www.brevo.com - free plan: 300 emails/day).
     // An HTTP API is used instead of SMTP because Render blocks outgoing SMTP ports.
-    // Set these environment variables on your host (e.g. Render -> Environment):
+    // Set these environment variables on your host (e.g. Render -> Environment), or use
+    // brevo.api.key / brevo.from.email / brevo.from.name in config.properties locally:
     //   BREVO_API_KEY    - API key from Brevo (SMTP & API -> API Keys)
     //   MAIL_FROM_EMAIL  - a sender address you verified in Brevo
     //   MAIL_FROM_NAME   - optional, defaults to "Supreme Money"
     // For local testing only, set EMAIL_DEV_MODE=true to print the email in the console instead of sending it.
     private static boolean sendEmail(String toEmail, String toName, String subject, String htmlBody) {
-        String apiKey = System.getenv("BREVO_API_KEY");
+        String apiKey = ConfigLoader.getProperty("brevo.api.key");
         String fromEmail = System.getenv("MAIL_FROM_EMAIL");
+        if (fromEmail == null || fromEmail.trim().isEmpty()) {
+            fromEmail = ConfigLoader.getProperty("brevo.from.email");
+        }
         String fromName = System.getenv("MAIL_FROM_NAME");
-        if (fromName == null || fromName.isEmpty()) fromName = "Supreme Money";
+        if (fromName == null || fromName.trim().isEmpty()) {
+            fromName = ConfigLoader.getProperty("brevo.from.name");
+        }
+        if (fromName.isEmpty()) fromName = "Supreme Money";
 
         if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
             if ("true".equalsIgnoreCase(System.getenv("EMAIL_DEV_MODE"))) {

@@ -555,7 +555,7 @@ public class LoginForm extends JFrame {
     // =====================================================
     private void showForgotPasswordDialog() {
         JDialog resetDialog = new JDialog(this, "Reset Password", true);
-        resetDialog.setSize(450, 450);  // Slightly taller
+        resetDialog.setSize(480, 620);
         resetDialog.setLocationRelativeTo(this);
         resetDialog.setUndecorated(true);
 
@@ -564,47 +564,73 @@ public class LoginForm extends JFrame {
         panel.setBackground(ATM_SCREEN_BG);
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(ATM_AMBER, 2),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)
+                BorderFactory.createEmptyBorder(20, 28, 20, 28)
         ));
 
-        // Title
         JLabel titleLabel = new JLabel("◈ RESET PASSWORD ◈");
         titleLabel.setFont(new Font("Courier New", Font.BOLD, 16));
         titleLabel.setForeground(ATM_AMBER);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Step label
-        JLabel stepLabel = new JLabel("Enter your username to continue");
+        JLabel stepLabel = new JLabel("We will email a one-time reset code");
         stepLabel.setFont(FONT_BODY);
         stepLabel.setForeground(ATM_GREEN);
         stepLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         stepLabel.setBorder(BorderFactory.createEmptyBorder(15, 0, 10, 0));
 
-        // Username field
         JTextField usernameField = new JTextField(20);
         styleField(usernameField);
-        usernameField.setMaximumSize(new Dimension(300, 40));
+        usernameField.setMaximumSize(new Dimension(360, 42));
         usernameField.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Error label
+        JTextField emailField = new JTextField(20);
+        styleField(emailField);
+        emailField.setMaximumSize(new Dimension(360, 42));
+        emailField.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JTextField codeField = new JTextField(20);
+        styleField(codeField);
+        codeField.setMaximumSize(new Dimension(360, 42));
+        codeField.setAlignmentX(Component.CENTER_ALIGNMENT);
+        codeField.setEnabled(false);
+
+        JPasswordField passwordField = new JPasswordField(20);
+        styleField(passwordField);
+        passwordField.setMaximumSize(new Dimension(360, 42));
+        passwordField.setAlignmentX(Component.CENTER_ALIGNMENT);
+        passwordField.setEnabled(false);
+
+        JPasswordField confirmField = new JPasswordField(20);
+        styleField(confirmField);
+        confirmField.setMaximumSize(new Dimension(360, 42));
+        confirmField.setAlignmentX(Component.CENTER_ALIGNMENT);
+        confirmField.setEnabled(false);
+
         JLabel errorLabel = new JLabel(" ");
         errorLabel.setFont(FONT_SMALL);
         errorLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorLabel.setForeground(ATM_RED);
 
-        // Button Panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         buttonPanel.setBackground(ATM_SCREEN_BG);
 
-        JButton nextBtn = new JButton("CONTINUE");
-        nextBtn.setFont(FONT_BUTTON);
-        nextBtn.setBackground(BUTTON_BG);
-        nextBtn.setForeground(ATM_GREEN);
-        nextBtn.setBorder(BorderFactory.createLineBorder(ATM_GREEN, 1));
-        nextBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextBtn.setPreferredSize(new Dimension(120, 40));
+        JButton sendCodeBtn = new JButton("SEND CODE");
+        sendCodeBtn.setFont(FONT_BUTTON);
+        sendCodeBtn.setBackground(BUTTON_BG);
+        sendCodeBtn.setForeground(ATM_GREEN);
+        sendCodeBtn.setBorder(BorderFactory.createLineBorder(ATM_GREEN, 1));
+        sendCodeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        sendCodeBtn.setPreferredSize(new Dimension(130, 40));
 
-        // ✅ ADD CANCEL/BACK BUTTON
+        JButton resetBtn = new JButton("RESET PASSWORD");
+        resetBtn.setFont(FONT_BUTTON);
+        resetBtn.setBackground(BUTTON_BG);
+        resetBtn.setForeground(ATM_AMBER);
+        resetBtn.setBorder(BorderFactory.createLineBorder(ATM_AMBER, 1));
+        resetBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        resetBtn.setPreferredSize(new Dimension(140, 40));
+        resetBtn.setEnabled(false);
+
         JButton cancelBtn = new JButton("✖ CANCEL");
         cancelBtn.setFont(FONT_BUTTON);
         cancelBtn.setBackground(BUTTON_BG);
@@ -612,64 +638,156 @@ public class LoginForm extends JFrame {
         cancelBtn.setBorder(BorderFactory.createLineBorder(ATM_RED, 1));
         cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         cancelBtn.setPreferredSize(new Dimension(120, 40));
-        cancelBtn.addActionListener(e -> resetDialog.dispose());  // Close dialog
+        cancelBtn.addActionListener(e -> resetDialog.dispose());
 
-        buttonPanel.add(nextBtn);
+        buttonPanel.add(sendCodeBtn);
+        buttonPanel.add(resetBtn);
         buttonPanel.add(cancelBtn);
 
-        // Add components
         panel.add(titleLabel);
         panel.add(stepLabel);
         panel.add(Box.createVerticalStrut(10));
+        panel.add(createResetLabel("Username"));
         panel.add(usernameField);
+        panel.add(createResetLabel("Registered email address"));
+        panel.add(emailField);
+        panel.add(createResetLabel("6-digit email code"));
+        panel.add(codeField);
+        panel.add(createResetLabel("New password (minimum 6 characters)"));
+        panel.add(passwordField);
+        panel.add(createResetLabel("Confirm new password"));
+        panel.add(confirmField);
         panel.add(Box.createVerticalStrut(15));
         panel.add(errorLabel);
         panel.add(buttonPanel);
 
-        // Handle "Continue" button
-        nextBtn.addActionListener(e -> {
+        sendCodeBtn.addActionListener(e -> {
             String username = usernameField.getText().trim();
-            if (username.isEmpty()) {
-                errorLabel.setText("⚠️ Please enter your username");
+            String email = emailField.getText().trim();
+            if (username.isEmpty() || email.isEmpty()) {
+                errorLabel.setText("Enter your username and registered email.");
+                errorLabel.setForeground(ATM_RED);
+                return;
+            }
+            if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+                errorLabel.setText("Enter a valid email address.");
                 errorLabel.setForeground(ATM_RED);
                 return;
             }
 
-            new Thread(() -> {
-                int[] result = checkUserSecurityQuestions(username);
+            sendCodeBtn.setEnabled(false);
+            sendCodeBtn.setText("SENDING...");
+            errorLabel.setText("Contacting email service...");
+            errorLabel.setForeground(ATM_GREEN);
+            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() {
+                    return OTPService.sendPasswordResetOTP(username, email);
+                }
 
-                SwingUtilities.invokeLater(() -> {
-                    if (result[0] == -1) {
-                        errorLabel.setText("❌ User not found");
-                        errorLabel.setForeground(ATM_RED);
-                    } else if (result[0] == -2) {
-                        // ✅ Better message with option to close
-                        int option = JOptionPane.showConfirmDialog(
-                                resetDialog,
-                                "No security questions set for this account.\n\n" +
-                                        "Please contact admin to reset your password.\n\n" +
-                                        "Would you like to go back to login?",
-                                "No Security Questions",
-                                JOptionPane.YES_NO_OPTION,
-                                JOptionPane.WARNING_MESSAGE
-                        );
-                        if (option == JOptionPane.YES_OPTION) {
-                            resetDialog.dispose();  // Close dialog, go back to login
+                @Override
+                protected void done() {
+                    sendCodeBtn.setEnabled(true);
+                    sendCodeBtn.setText("RESEND CODE");
+                    try {
+                        if (get()) {
+                            usernameField.setEnabled(false);
+                            emailField.setEnabled(false);
+                            codeField.setEnabled(true);
+                            passwordField.setEnabled(true);
+                            confirmField.setEnabled(true);
+                            resetBtn.setEnabled(true);
+                            errorLabel.setText("Code sent. Check your inbox and spam folder.");
+                            errorLabel.setForeground(ATM_GREEN);
                         } else {
-                            errorLabel.setText("❌ Please contact admin");
+                            errorLabel.setText("Could not send code. Check account email and Brevo settings.");
                             errorLabel.setForeground(ATM_RED);
                         }
-                    } else {
-                        // User found and has security questions
-                        resetDialog.dispose();
-                        showSecurityQuestionsDialog(result[0], username);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        errorLabel.setText("Sending the code was interrupted.");
+                        errorLabel.setForeground(ATM_RED);
+                    } catch (java.util.concurrent.ExecutionException e) {
+                        errorLabel.setText("Email error: "
+                                + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+                        errorLabel.setForeground(ATM_RED);
                     }
-                });
-            }).start();
+                }
+            };
+            worker.execute();
+        });
+
+        resetBtn.addActionListener(e -> {
+            String code = codeField.getText().trim();
+            String password = new String(passwordField.getPassword());
+            String confirm = new String(confirmField.getPassword());
+            if (!code.matches("\\d{6}")) {
+                errorLabel.setText("Enter the 6-digit code from your email.");
+                errorLabel.setForeground(ATM_RED);
+                return;
+            }
+            if (password.length() < 6) {
+                errorLabel.setText("Password must be at least 6 characters.");
+                errorLabel.setForeground(ATM_RED);
+                return;
+            }
+            if (!password.equals(confirm)) {
+                errorLabel.setText("Passwords do not match.");
+                errorLabel.setForeground(ATM_RED);
+                return;
+            }
+
+            resetBtn.setEnabled(false);
+            sendCodeBtn.setEnabled(false);
+            errorLabel.setText("Verifying code...");
+            errorLabel.setForeground(ATM_GREEN);
+            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() {
+                    return OTPService.resetPasswordWithOTP(usernameField.getText().trim(),
+                            emailField.getText().trim(), code, password);
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        if (get()) {
+                            JOptionPane.showMessageDialog(resetDialog,
+                                    "Password reset successfully. You can now sign in.",
+                                    "Password Reset", JOptionPane.INFORMATION_MESSAGE);
+                            resetDialog.dispose();
+                        } else {
+                            errorLabel.setText("Invalid or expired code, or too many attempts.");
+                            errorLabel.setForeground(ATM_RED);
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        errorLabel.setText("Password reset was interrupted.");
+                        errorLabel.setForeground(ATM_RED);
+                    } catch (java.util.concurrent.ExecutionException e) {
+                        errorLabel.setText("Could not reset password: "
+                                + (e.getCause() == null ? e.getMessage() : e.getCause().getMessage()));
+                        errorLabel.setForeground(ATM_RED);
+                    } finally {
+                        resetBtn.setEnabled(true);
+                        sendCodeBtn.setEnabled(true);
+                    }
+                }
+            };
+            worker.execute();
         });
 
         resetDialog.add(panel);
         resetDialog.setVisible(true);
+    }
+
+    private JLabel createResetLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(FONT_SMALL);
+        label.setForeground(ATM_GREEN_DIM);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        label.setBorder(BorderFactory.createEmptyBorder(8, 0, 3, 0));
+        return label;
     }
 
     private int[] checkUserSecurityQuestions(String username) {

@@ -114,8 +114,31 @@ public class RegisterForm extends JFrame {
         styleTextField(emailField);
         formPanel.add(emailField, gbc);
 
-        // Password
+        // Email verification code
         gbc.gridx = 0; gbc.gridy = 4;
+        JLabel otpLabel = new JLabel("Email OTP (6 digits):");
+        otpLabel.setFont(new Font("Courier New", Font.BOLD, 12));
+        otpLabel.setForeground(LABEL_COLOR);
+        formPanel.add(otpLabel, gbc);
+
+        gbc.gridx = 1;
+        JPanel otpPanel = new JPanel(new BorderLayout(8, 0));
+        otpPanel.setBackground(PANEL_COLOR);
+        otpField = new JTextField(10);
+        otpField.setToolTipText("Enter the six-digit code sent to your email");
+        styleTextField(otpField);
+        otpField.setEnabled(false);
+        resendOtpButton = new JButton("RESEND");
+        styleButton(resendOtpButton, ACCENT_COLOR);
+        resendOtpButton.setFont(new Font("Courier New", Font.BOLD, 10));
+        resendOtpButton.setEnabled(false);
+        resendOtpButton.addActionListener(e -> resendOTP());
+        otpPanel.add(otpField, BorderLayout.CENTER);
+        otpPanel.add(resendOtpButton, BorderLayout.EAST);
+        formPanel.add(otpPanel, gbc);
+
+        // Password
+        gbc.gridx = 0; gbc.gridy = 5;
         JLabel passLabel = new JLabel("Password:");
         passLabel.setFont(new Font("Courier New", Font.BOLD, 12));
         passLabel.setForeground(LABEL_COLOR);
@@ -127,7 +150,7 @@ public class RegisterForm extends JFrame {
         formPanel.add(passwordField, gbc);
 
         // Confirm Password
-        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridx = 0; gbc.gridy = 6;
         JLabel confirmLabel = new JLabel("Confirm Password:");
         confirmLabel.setFont(new Font("Courier New", Font.BOLD, 12));
         confirmLabel.setForeground(LABEL_COLOR);
@@ -137,28 +160,6 @@ public class RegisterForm extends JFrame {
         confirmField = new JPasswordField(20);
         styleTextField(confirmField);
         formPanel.add(confirmField, gbc);
-
-        // Email verification code
-        gbc.gridx = 0; gbc.gridy = 6;
-        JLabel otpLabel = new JLabel("Email OTP:");
-        otpLabel.setFont(new Font("Courier New", Font.BOLD, 12));
-        otpLabel.setForeground(LABEL_COLOR);
-        formPanel.add(otpLabel, gbc);
-
-        gbc.gridx = 1;
-        JPanel otpPanel = new JPanel(new BorderLayout(8, 0));
-        otpPanel.setBackground(PANEL_COLOR);
-        otpField = new JTextField(10);
-        styleTextField(otpField);
-        otpField.setEnabled(false);
-        resendOtpButton = new JButton("RESEND");
-        styleButton(resendOtpButton, ACCENT_COLOR);
-        resendOtpButton.setFont(new Font("Courier New", Font.BOLD, 10));
-        resendOtpButton.setEnabled(false);
-        resendOtpButton.addActionListener(e -> resendOTP());
-        otpPanel.add(otpField, BorderLayout.CENTER);
-        otpPanel.add(resendOtpButton, BorderLayout.EAST);
-        formPanel.add(otpPanel, gbc);
 
         // Error label
         gbc.gridx = 0; gbc.gridy = 7;
@@ -204,7 +205,12 @@ public class RegisterForm extends JFrame {
         formPanel.add(loginPanel, gbc);
 
         mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(formPanel, BorderLayout.CENTER);
+        JScrollPane formScrollPane = new JScrollPane(formPanel);
+        formScrollPane.setBorder(null);
+        formScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        formScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        formScrollPane.getViewport().setBackground(BG_COLOR);
+        mainPanel.add(formScrollPane, BorderLayout.CENTER);
 
         add(mainPanel);
         setVisible(true);

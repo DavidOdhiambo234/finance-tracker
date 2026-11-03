@@ -61,7 +61,7 @@ Give it a ⭐ on GitHub and feel free to fork or contribute!
 
 ## Email verification (Brevo)
 
-Desktop registration verifies the supplied email address with a one-time code before activating the account. Configure Brevo with either environment variables or these properties in `config.properties`:
+Desktop registration verifies the supplied email address with a one-time code before activating the account. The desktop forgot-password flow also sends a reset code to the account's registered email. Configure Brevo with either environment variables or these properties in `config.properties`:
 
 ```properties
 brevo.api.key=YOUR_BREVO_API_KEY
